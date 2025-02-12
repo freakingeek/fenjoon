@@ -7,9 +7,9 @@ import (
 )
 
 type Story struct {
-	ID        uint   `json:"id" gorm:"primaryKey"`
-	Text      string `gorm:"type:varchar(256); not null"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	ID        uint   `gorm:"primaryKey" json:"id"`
+	Text      string `gorm:"type:varchar(256); not null" json:"text"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deletedAt"`
 }
