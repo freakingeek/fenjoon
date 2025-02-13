@@ -16,6 +16,7 @@ func main() {
 	}
 
 	database.InitDB()
+	database.InitRedis()
 
 	r := gin.Default()
 	routes.SetupRoutes(r)
