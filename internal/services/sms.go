@@ -20,11 +20,11 @@ type SendOTPViaSMSRequestBody struct {
 func SendOTPViaSMS(phone string, otp int) error {
 
 	body := SendOTPViaSMSRequestBody{
-		Code:      "bmrlq62kxilkjqk",
+		Code:      "wsun8xjitr94pyb",
 		Sender:    "+983000505",
 		Recipient: strings.Replace(phone, "0", "+98", 1),
 		Variable: map[string]string{
-			"otpCode": strconv.Itoa(otp),
+			"otp": strconv.Itoa(otp),
 		},
 	}
 
