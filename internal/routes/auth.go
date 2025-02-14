@@ -8,6 +8,6 @@ import (
 func AuthRoutes(r *gin.RouterGroup) {
 	v1 := r.Group("/auth")
 
-	v1.POST("/otp/send", handlers.SendOTPHandler)
-	v1.POST("/otp/verify", handlers.VerifyOTPHandler)
+	v1.POST("/otp/send", handlers.SendOTP)
+	v1.POST("/otp/verify", handlers.VerifyOTP)
 }

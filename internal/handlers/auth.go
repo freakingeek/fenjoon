@@ -15,7 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SendOTPHandler(c *gin.Context) {
+func SendOTP(c *gin.Context) {
 	var request struct {
 		Phone string `json:"phone" binding:"required"`
 	}
@@ -54,7 +54,7 @@ func SendOTPHandler(c *gin.Context) {
 	})
 }
 
-func VerifyOTPHandler(c *gin.Context) {
+func VerifyOTP(c *gin.Context) {
 	var request struct {
 		Phone string `json:"phone" binding:"required"`
 		Code  string `json:"code" binding:"required"`
