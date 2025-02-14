@@ -9,6 +9,7 @@ import (
 	"github.com/freakingeek/fenjoon/internal/auth"
 	"github.com/freakingeek/fenjoon/internal/database"
 	"github.com/freakingeek/fenjoon/internal/messages"
+	"github.com/freakingeek/fenjoon/internal/models"
 	"github.com/freakingeek/fenjoon/internal/responses"
 	"github.com/freakingeek/fenjoon/internal/services"
 	"github.com/gin-gonic/gin"
@@ -80,7 +81,18 @@ func VerifyOTPHandler(c *gin.Context) {
 
 	database.RedisClient.Del(context.Background(), "otp:"+request.Phone)
 
-	token, err := auth.GenerateJWTToken(request.Phone)
+	user := models.User{FirstName: "", LastName: "", Nickname: ""}
+
+	if err := database.DB.Create(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+			Status:  http.StatusInternalServerError,
+			Message: messages.GeneralFailed,
+			Data:    map[string]interface{}{"status": "failed"},
+		})
+		return
+	}
+
+	token, err := auth.GenerateJWTToken(user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
 			Status:  http.StatusInternalServerError,
