@@ -76,7 +76,7 @@ func UpdateStory(c *gin.Context) {
 	story.Text = request.Text
 
 	if err := database.DB.Save(&story).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: map[string]interface{}{"story": story}})
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: map[string]interface{}{"story": nil}})
 		return
 	}
 
