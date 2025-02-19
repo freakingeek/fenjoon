@@ -5,6 +5,7 @@ import (
 
 	"github.com/freakingeek/fenjoon/internal/database"
 	"github.com/freakingeek/fenjoon/internal/routes"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -19,6 +20,14 @@ func main() {
 	database.InitRedis()
 
 	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowCredentials: true,
+	}))
+
 	routes.SetupRoutes(r)
 
 	err = r.Run(":8080")
