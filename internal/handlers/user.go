@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/freakingeek/fenjoon/internal/auth"
@@ -55,6 +56,87 @@ func GetUserById(c *gin.Context) {
 		Status:  http.StatusOK,
 		Message: messages.GeneralSuccess,
 		Data:    map[string]interface{}{"user": user},
+	})
+}
+
+func GetUserStories(c *gin.Context) {
+	token, err := auth.ParseBearerToken(c.GetHeader("Authorization"))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
+			Status:  http.StatusUnauthorized,
+			Message: messages.GeneralUnauthorized,
+			Data:    map[string]interface{}{"stories": nil},
+		})
+		return
+	}
+
+	claims, err := auth.ParseJWTToken(token)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
+			Status:  http.StatusUnauthorized,
+			Message: messages.GeneralUnauthorized,
+			Data:    map[string]interface{}{"stories": nil},
+		})
+		return
+	}
+
+	floatUserId, ok := claims["id"].(float64)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+			Status:  http.StatusInternalServerError,
+			Message: messages.GeneralFailed,
+			Data:    map[string]interface{}{"stories": nil},
+		})
+		return
+	}
+
+	userId := uint(floatUserId)
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
+	var stories []models.Story
+	var total int64
+
+	if err := database.DB.Model(&models.Story{}).Where("user_id = ?", userId).Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+			Status:  http.StatusInternalServerError,
+			Message: messages.GeneralFailed,
+			Data:    map[string]interface{}{"stories": nil},
+		})
+		return
+	}
+
+	if err := database.DB.Where("user_id = ?", userId).Limit(limit).Offset(offset).Find(&stories).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+			Status:  http.StatusInternalServerError,
+			Message: messages.GeneralFailed,
+			Data:    map[string]interface{}{"stories": nil},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{
+		Status:  http.StatusOK,
+		Message: messages.GeneralSuccess,
+		Data: map[string]interface{}{
+			"stories": stories,
+			"pagination": map[string]interface{}{
+				"total": total,
+				"page":  page,
+				"limit": limit,
+				"pages": int((total + int64(limit) - 1) / int64(limit)), // Calculate total pages
+			},
+		},
 	})
 }
 
