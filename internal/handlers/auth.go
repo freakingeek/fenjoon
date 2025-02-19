@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"time"
@@ -29,11 +30,21 @@ func SendOTP(c *gin.Context) {
 		return
 	}
 
+	existingTTL, err := database.RedisClient.TTL(context.Background(), "otp:"+request.Phone).Result()
+	if err == nil && existingTTL > 0 {
+		c.JSON(http.StatusTooManyRequests, responses.ApiResponse{
+			Status:  http.StatusTooManyRequests,
+			Message: fmt.Sprintf(messages.OTPTryAgain, int(existingTTL.Seconds())),
+			Data:    map[string]interface{}{"status": "failed"},
+		})
+		return
+	}
+
 	// Generate a 5-digit OTP
 	rand.NewSource(time.Now().UnixNano())
 	otp := rand.Intn(90000) + 10000
 
-	err := database.RedisClient.Set(context.Background(), "otp:"+request.Phone, otp, 5*time.Minute).Err()
+	err = database.RedisClient.Set(context.Background(), "otp:"+request.Phone, otp, 30*time.Second).Err()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
 			Status:  http.StatusInternalServerError,
