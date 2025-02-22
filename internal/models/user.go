@@ -17,3 +17,11 @@ type User struct {
 	UpdatedAt  time.Time      `json:"updatedAt"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deletedAt"`
 }
+
+type BaseUser struct {
+	ID         uint   `gorm:"primaryKey" json:"id"`
+	FirstName  string `gorm:"varchar(50);not null" json:"firstName"`
+	LastName   string `gorm:"varchar(50);not null" json:"lastName"`
+	Nickname   string `gorm:"varchar(50);not null" json:"nickname"`
+	IsVerified bool   `gorm:"default false" json:"isVerified"`
+}
