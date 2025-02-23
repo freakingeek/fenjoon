@@ -55,9 +55,11 @@ func CreateStory(c *gin.Context) {
 	story := models.Story{Text: request.Text, UserID: uint(floatUserId)}
 
 	if err := database.DB.Create(&story).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.StoryNotCreated, Data: map[string]interface{}{"story": story}})
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.StoryNotCreated, Data: map[string]interface{}{"story": nil}})
 		return
 	}
+
+	database.DB.Preload("User").First(&story, story.ID)
 
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.StoryCreated, Data: map[string]interface{}{"story": story}})
 }
@@ -87,7 +89,7 @@ func GetAllStories(c *gin.Context) {
 		return
 	}
 
-	if err := database.DB.Limit(limit).Offset(offset).Find(&stories).Error; err != nil {
+	if err := database.DB.Preload("User").Order("id DESC").Limit(limit).Offset(offset).Find(&stories).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
 			Status:  http.StatusInternalServerError,
 			Message: messages.GeneralFailed,
