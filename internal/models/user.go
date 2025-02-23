@@ -12,6 +12,7 @@ type User struct {
 	FirstName  string         `gorm:"varchar(50);not null" json:"firstName"`
 	LastName   string         `gorm:"varchar(50);not null" json:"lastName"`
 	Nickname   string         `gorm:"varchar(50);not null" json:"nickname"`
+	Stories    []Story        `gorm:"foreignKey:UserID" json:"-"`
 	IsVerified bool           `gorm:"default false" json:"isVerified"`
 	CreatedAt  time.Time      `json:"createdAt"`
 	UpdatedAt  time.Time      `json:"updatedAt"`
