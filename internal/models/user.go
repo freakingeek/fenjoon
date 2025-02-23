@@ -8,6 +8,7 @@ import (
 
 type User struct {
 	ID         uint           `gorm:"primaryKey" json:"id"`
+	Phone      string         `gorm:"varchar(11);<-:create" json:"phone"`
 	FirstName  string         `gorm:"varchar(50);not null" json:"firstName"`
 	LastName   string         `gorm:"varchar(50);not null" json:"lastName"`
 	Nickname   string         `gorm:"varchar(50);not null" json:"nickname"`
@@ -19,6 +20,7 @@ type User struct {
 
 type BaseUser struct {
 	ID         uint   `gorm:"primaryKey" json:"id"`
+	Phone      string `gorm:"varchar(11);<-:create" json:"phone"`
 	FirstName  string `gorm:"varchar(50);not null" json:"firstName"`
 	LastName   string `gorm:"varchar(50);not null" json:"lastName"`
 	Nickname   string `gorm:"varchar(50);not null" json:"nickname"`
