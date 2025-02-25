@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/freakingeek/fenjoon/internal/responses"
 	"github.com/freakingeek/fenjoon/internal/services"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func SendOTP(c *gin.Context) {
@@ -61,6 +63,7 @@ func SendOTP(c *gin.Context) {
 		Message: messages.GeneralSuccess,
 		Data: map[string]string{
 			"status": "success",
+			"phone":  request.Phone,
 		},
 	})
 }
@@ -81,7 +84,7 @@ func VerifyOTP(c *gin.Context) {
 	}
 
 	storedOTP, err := database.RedisClient.Get(context.Background(), "otp:"+request.Phone).Result()
-	if storedOTP != request.Code || err != nil {
+	if err != nil || storedOTP != request.Code {
 		c.JSON(http.StatusBadRequest, responses.ApiResponse{
 			Status:  http.StatusBadRequest,
 			Message: messages.OTPInvalid,
@@ -92,15 +95,32 @@ func VerifyOTP(c *gin.Context) {
 
 	database.RedisClient.Del(context.Background(), "otp:"+request.Phone)
 
-	user := models.User{FirstName: "", LastName: "", Nickname: ""}
+	var user models.User
+	if err := database.DB.Where("phone = ?", request.Phone).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			user = models.User{
+				FirstName: "",
+				LastName:  "",
+				Nickname:  "",
+				Phone:     request.Phone,
+			}
 
-	if err := database.DB.Create(&user).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
-			Status:  http.StatusInternalServerError,
-			Message: messages.GeneralFailed,
-			Data:    map[string]interface{}{"status": "failed"},
-		})
-		return
+			if err := database.DB.Create(&user).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+					Status:  http.StatusInternalServerError,
+					Message: messages.GeneralFailed,
+					Data:    map[string]interface{}{"status": "failed"},
+				})
+				return
+			}
+		} else {
+			c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+				Status:  http.StatusInternalServerError,
+				Message: messages.GeneralFailed,
+				Data:    map[string]interface{}{"status": "failed"},
+			})
+			return
+		}
 	}
 
 	token, err := auth.GenerateJWTToken(user.ID)
