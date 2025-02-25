@@ -16,7 +16,7 @@ import (
 
 func isFarsiText(text string) bool {
 	// Regular expression to match only Persian characters
-	re := regexp.MustCompile(`^[\p{Arabic}\s]+$`)
+	re := regexp.MustCompile(`^[\p{Arabic}\s\x{200C}\x{0640}]+$`)
 	return re.MatchString(text)
 }
 
@@ -55,7 +55,7 @@ func GetUserById(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.ApiResponse{
 		Status:  http.StatusOK,
 		Message: messages.GeneralSuccess,
-		Data:    map[string]interface{}{"user": user},
+		Data:    user,
 	})
 }
 
@@ -199,15 +199,9 @@ func UpdateUserById(c *gin.Context) {
 	}
 
 	updates := map[string]interface{}{}
-	if strings.TrimSpace(request.FirstName) != "" {
-		updates["first_name"] = request.FirstName
-	}
-	if strings.TrimSpace(request.LastName) != "" {
-		updates["last_name"] = request.LastName
-	}
-	if strings.TrimSpace(request.Nickname) != "" {
-		updates["nickname"] = request.Nickname
-	}
+	updates["first_name"] = strings.TrimSpace(request.FirstName)
+	updates["last_name"] = strings.TrimSpace(request.LastName)
+	updates["nickname"] = strings.TrimSpace(request.Nickname)
 
 	if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
@@ -220,6 +214,6 @@ func UpdateUserById(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.ApiResponse{
 		Status:  http.StatusOK,
 		Message: messages.UserEdited,
-		Data:    map[string]interface{}{"user": user},
+		Data:    user,
 	})
 }
