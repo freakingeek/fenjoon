@@ -123,6 +123,8 @@ func GetStoryById(c *gin.Context) {
 		return
 	}
 
+	database.DB.Preload("User").First(&story, story.ID)
+
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: map[string]interface{}{"story": story}})
 }
 
