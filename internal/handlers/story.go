@@ -88,15 +88,19 @@ func GetAllStories(c *gin.Context) {
 func GetStoryById(c *gin.Context) {
 	var story models.Story
 
-	id := c.Param("id")
+	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
 
-	if err := database.DB.Preload("User").Where("id = ?", id).First(&story).Error; err != nil {
+	if err := database.DB.Preload("User").Where("id = ?", storyId).First(&story).Error; err != nil {
 		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
 		return
 	}
 
 	var likesCount int64
-	if err := database.DB.Model(&models.Like{}).Where("story_id = ?", id).Count(&likesCount).Error; err != nil {
+	if err := database.DB.Model(&models.Like{}).Where("story_id = ?", storyId).Count(&likesCount).Error; err != nil {
 		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
 		return
 	}
@@ -117,7 +121,11 @@ func UpdateStory(c *gin.Context) {
 		Text string `json:"text" binding:"required,min=25,max=250"`
 	}
 
-	id := c.Param("id")
+	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.StoryCharLimit, Data: nil})
@@ -126,7 +134,7 @@ func UpdateStory(c *gin.Context) {
 
 	var story models.Story
 
-	if err := database.DB.Preload("User").Where("id = ? AND user_id = ?", id, userId).First(&story).Error; err != nil {
+	if err := database.DB.Preload("User").Where("id = ? AND user_id = ?", storyId, userId).First(&story).Error; err != nil {
 		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
 		return
 	}
@@ -148,11 +156,15 @@ func DeleteStory(c *gin.Context) {
 		return
 	}
 
-	id := c.Param("id")
+	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
 
 	var story models.Story
 
-	if err := database.DB.Preload("User").Where("id = ? AND user_id = ?", id, userId).First(&story).Error; err != nil {
+	if err := database.DB.Preload("User").Where("id = ? AND user_id = ?", storyId, userId).First(&story).Error; err != nil {
 		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: map[string]interface{}{"story": nil}})
 		return
 	}
@@ -172,8 +184,7 @@ func LikeStoryById(c *gin.Context) {
 		return
 	}
 
-	storyIdParam := c.Param("id")
-	storyId, err := strconv.ParseUint(storyIdParam, 10, 32)
+	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.StoryNotFound, Data: nil})
 		return
@@ -213,8 +224,7 @@ func DislikeStoryById(c *gin.Context) {
 		return
 	}
 
-	storyIdParam := c.Param("id")
-	storyId, err := strconv.ParseUint(storyIdParam, 10, 32)
+	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.StoryNotFound, Data: nil})
 		return
@@ -241,8 +251,7 @@ func DislikeStoryById(c *gin.Context) {
 }
 
 func GetStoryLikers(c *gin.Context) {
-	storyIdParam := c.Param("id")
-	storyId, err := strconv.ParseUint(storyIdParam, 10, 32)
+	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.GeneralBadRequest, Data: nil})
 		return
