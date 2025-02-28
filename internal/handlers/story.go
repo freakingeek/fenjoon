@@ -174,3 +174,220 @@ func DeleteStory(c *gin.Context) {
 
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.StoryDeleted, Data: map[string]interface{}{"story": story}})
 }
+
+func LikeStoryById(c *gin.Context) {
+	token, err := auth.ParseBearerToken(c.GetHeader("Authorization"))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
+			Status:  http.StatusUnauthorized,
+			Message: messages.GeneralUnauthorized,
+			Data:    nil,
+		})
+		return
+	}
+
+	claims, err := auth.ParseJWTToken(token)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
+			Status:  http.StatusUnauthorized,
+			Message: messages.GeneralUnauthorized,
+			Data:    nil,
+		})
+		return
+	}
+
+	floatUserId, ok := claims["id"].(float64)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+			Status:  http.StatusInternalServerError,
+			Message: messages.GeneralFailed,
+			Data:    nil,
+		})
+		return
+	}
+
+	userId := uint(floatUserId)
+
+	storyIdParam := c.Param("id")
+	storyId, err := strconv.ParseUint(storyIdParam, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{
+			Status:  http.StatusBadRequest,
+			Message: messages.StoryNotFound,
+			Data:    nil,
+		})
+		return
+	}
+
+	var story models.Story
+	if err := database.DB.First(&story, storyId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{
+			Status:  http.StatusNotFound,
+			Message: messages.StoryNotFound,
+			Data:    nil,
+		})
+		return
+	}
+
+	var user models.User
+	if err := database.DB.First(&user, userId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{
+			Status:  http.StatusNotFound,
+			Message: messages.UserNotFound,
+			Data:    nil,
+		})
+		return
+	}
+
+	var existingLike models.Like
+	if err := database.DB.Where("story_id = ? AND user_id = ?", storyId, userId).First(&existingLike).Error; err == nil {
+		c.JSON(http.StatusConflict, responses.ApiResponse{
+			Status:  http.StatusConflict,
+			Message: messages.StoryAlreadyLiked,
+			Data:    nil,
+		})
+		return
+	}
+
+	like := models.Like{
+		StoryId: uint(storyId),
+		UserId:  userId,
+	}
+
+	if err := database.DB.Create(&like).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+			Status:  http.StatusInternalServerError,
+			Message: messages.GeneralFailed,
+			Data:    nil,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{
+		Status:  http.StatusOK,
+		Message: messages.GeneralSuccess,
+		Data:    gin.H{"liked": true},
+	})
+}
+
+func DislikeStoryById(c *gin.Context) {
+	token, err := auth.ParseBearerToken(c.GetHeader("Authorization"))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
+			Status:  http.StatusUnauthorized,
+			Message: messages.GeneralUnauthorized,
+			Data:    nil,
+		})
+		return
+	}
+
+	claims, err := auth.ParseJWTToken(token)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
+			Status:  http.StatusUnauthorized,
+			Message: messages.GeneralUnauthorized,
+			Data:    nil,
+		})
+		return
+	}
+
+	floatUserId, ok := claims["id"].(float64)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+			Status:  http.StatusInternalServerError,
+			Message: messages.GeneralFailed,
+			Data:    nil,
+		})
+		return
+	}
+
+	userId := uint(floatUserId)
+
+	storyIdParam := c.Param("id")
+	storyId, err := strconv.ParseUint(storyIdParam, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{
+			Status:  http.StatusBadRequest,
+			Message: messages.StoryNotFound,
+			Data:    nil,
+		})
+		return
+	}
+
+	var story models.Story
+	if err := database.DB.First(&story, storyId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{
+			Status:  http.StatusNotFound,
+			Message: messages.StoryNotFound,
+			Data:    nil,
+		})
+		return
+	}
+
+	var like models.Like
+	if err := database.DB.Where("story_id = ? AND user_id = ?", storyId, userId).First(&like).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{
+			Status:  http.StatusNotFound,
+			Message: messages.GeneralAccessDenied,
+			Data:    nil,
+		})
+		return
+	}
+
+	if err := database.DB.Delete(&like).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+			Status:  http.StatusInternalServerError,
+			Message: messages.GeneralFailed,
+			Data:    nil,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{
+		Status:  http.StatusOK,
+		Message: messages.GeneralSuccess,
+		Data:    gin.H{"liked": false},
+	})
+}
+
+func GetStoryLikers(c *gin.Context) {
+	storyIdParam := c.Param("id")
+	storyId, err := strconv.ParseUint(storyIdParam, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{
+			Status:  http.StatusBadRequest,
+			Message: messages.StoryNotFound,
+			Data:    nil,
+		})
+		return
+	}
+
+	var story models.Story
+	if err := database.DB.First(&story, storyId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{
+			Status:  http.StatusNotFound,
+			Message: messages.StoryNotFound,
+			Data:    nil,
+		})
+		return
+	}
+
+	var users []models.User
+	if err := database.DB.
+		Joins("JOIN likes ON likes.user_id = users.id").
+		Where("likes.story_id = ?", storyId).
+		Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+			Status:  http.StatusInternalServerError,
+			Message: messages.GeneralFailed,
+			Data:    nil,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{
+		Status:  http.StatusOK,
+		Message: messages.GeneralSuccess,
+		Data:    users,
+	})
+}
