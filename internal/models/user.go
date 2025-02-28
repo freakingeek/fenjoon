@@ -15,6 +15,6 @@ type User struct {
 	Stories    []Story        `gorm:"foreignKey:UserID" json:"-"`
 	IsVerified bool           `gorm:"default false" json:"isVerified"`
 	CreatedAt  time.Time      `json:"createdAt"`
-	UpdatedAt  time.Time      `json:"updatedAt"`
-	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deletedAt"`
+	UpdatedAt  time.Time      `json:"-"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 }
