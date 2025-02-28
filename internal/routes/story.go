@@ -17,4 +17,8 @@ func StoryRoutes(r *gin.RouterGroup) {
 	v1.GET(":id/likes", handlers.GetStoryLikers)
 	v1.POST(":id/likes", handlers.LikeStoryById)
 	v1.DELETE(":id/likes", handlers.DislikeStoryById)
+
+	v1.GET(":id/comments", handlers.GetStoryComments)
+	v1.POST(":id/comments", handlers.CommentStoryById)
+	v1.DELETE(":id/comments/:commentId", handlers.UncommentStoryById)
 }

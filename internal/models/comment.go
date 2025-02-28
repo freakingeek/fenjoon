@@ -8,9 +8,10 @@ import (
 
 type Comment struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	StoryId   uint           `gorm:"not null" json:"-"`
-	UserId    uint           `gorm:"not null" json:"-"`
-	Text      string         `gorm:"no null" json:"text"`
+	StoryID   uint           `gorm:"not null" json:"-"`
+	UserID    uint           `gorm:"not null" json:"-"`
+	User      User           `gorm:"foreignKey:UserID" json:"user"`
+	Text      string         `gorm:"type:varchar(500);not null" json:"text"`
 	CreatedAt time.Time      `json:"createdAt"`
 	UpdatedAt time.Time      `json:"-"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`

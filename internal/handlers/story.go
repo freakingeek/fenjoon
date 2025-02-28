@@ -65,9 +65,21 @@ func GetAllStories(c *gin.Context) {
 	}
 
 	for i := range stories {
-		var likeCount int64
-		database.DB.Model(&models.Like{}).Where("story_id = ?", stories[i].ID).Count(&likeCount)
-		stories[i].LikesCount = uint(likeCount)
+		var likesCount int64
+		if err := database.DB.Model(&models.Like{}).Where("story_id = ?", stories[i].ID).Count(&likesCount).Error; err != nil {
+			c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+			return
+		}
+
+		var commentsCount int64
+		if err := database.DB.Model(&models.Comment{}).Where("story_id = ?", stories[i].ID).Count(&commentsCount).Error; err != nil {
+			c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+			return
+		}
+
+		stories[i].LikesCount = uint(likesCount)
+		stories[i].CommentsCount = uint(commentsCount)
+
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{
@@ -105,7 +117,14 @@ func GetStoryById(c *gin.Context) {
 		return
 	}
 
+	var commentsCount int64
+	if err := database.DB.Model(&models.Comment{}).Where("story_id = ?", storyId).Count(&commentsCount).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
+
 	story.LikesCount = uint(likesCount)
+	story.CommentsCount = uint(commentsCount)
 
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: story})
 }
@@ -247,7 +266,7 @@ func DislikeStoryById(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.StoryDisliked, Data: false})
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.StoryDisliked, Data: true})
 }
 
 func GetStoryLikers(c *gin.Context) {
@@ -273,4 +292,73 @@ func GetStoryLikers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: users})
+}
+
+func CommentStoryById(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		return
+	}
+
+	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
+
+	var request struct {
+		Text string `json:"text" binding:"required,min=5,max=150"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.GeneralBadRequest, Data: nil})
+		return
+	}
+
+	comment := models.Comment{StoryID: uint(storyId), UserID: uint(userId), Text: request.Text}
+	if err := database.DB.Create(&comment).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: comment})
+}
+
+func UncommentStoryById(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		return
+	}
+
+	commentId, err := strconv.ParseUint(c.Param("commentId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
+
+	if err := database.DB.Where("id = ? AND user_id = ?", commentId, userId).Delete(&models.Comment{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: true})
+}
+
+func GetStoryComments(c *gin.Context) {
+	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
+
+	var comments []models.Comment
+
+	if err := database.DB.Where("story_id = ?", storyId).Preload("User").Find(&comments).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: "Failed to fetch comments", Data: nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: "Success", Data: comments})
 }
