@@ -12,8 +12,10 @@ type Story struct {
 	UserID        uint           `gorm:"not null" json:"-"`
 	User          User           `gorm:"foreignKey:UserID" json:"user"`
 	Likes         []Like         `gorm:"foreignKey:StoryID" json:"-"`
+	Shares        []Share        `gorm:"foreignKey:StoryID" json:"-"`
 	Comments      []Comment      `gorm:"foreignKey:StoryID" json:"-"`
 	LikesCount    uint           `gorm:"-" json:"likesCount"`
+	SharesCount   uint           `gorm:"-" json:"sharesCount"`
 	CommentsCount uint           `gorm:"-" json:"commentsCount"`
 	CreatedAt     time.Time      `json:"createdAt"`
 	UpdatedAt     time.Time      `json:"-"`

@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/freakingeek/fenjoon/internal/auth"
 	"github.com/freakingeek/fenjoon/internal/database"
@@ -10,6 +11,7 @@ import (
 	"github.com/freakingeek/fenjoon/internal/models"
 	"github.com/freakingeek/fenjoon/internal/responses"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func CreateStory(c *gin.Context) {
@@ -71,6 +73,12 @@ func GetAllStories(c *gin.Context) {
 			return
 		}
 
+		var sharesCount int64
+		if err := database.DB.Model(&models.Share{}).Where("story_id = ?", stories[i].ID).Count(&sharesCount).Error; err != nil {
+			c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+			return
+		}
+
 		var commentsCount int64
 		if err := database.DB.Model(&models.Comment{}).Where("story_id = ?", stories[i].ID).Count(&commentsCount).Error; err != nil {
 			c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
@@ -78,6 +86,7 @@ func GetAllStories(c *gin.Context) {
 		}
 
 		stories[i].LikesCount = uint(likesCount)
+		stories[i].SharesCount = uint(sharesCount)
 		stories[i].CommentsCount = uint(commentsCount)
 
 	}
@@ -117,6 +126,12 @@ func GetStoryById(c *gin.Context) {
 		return
 	}
 
+	var sharesCount int64
+	if err := database.DB.Model(&models.Share{}).Where("story_id = ?", storyId).Count(&sharesCount).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
+
 	var commentsCount int64
 	if err := database.DB.Model(&models.Comment{}).Where("story_id = ?", storyId).Count(&commentsCount).Error; err != nil {
 		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
@@ -124,6 +139,7 @@ func GetStoryById(c *gin.Context) {
 	}
 
 	story.LikesCount = uint(likesCount)
+	story.SharesCount = uint(sharesCount)
 	story.CommentsCount = uint(commentsCount)
 
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: story})
@@ -361,4 +377,40 @@ func GetStoryComments(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: "Success", Data: comments})
+}
+
+func ShareStoryById(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		return
+	}
+
+	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
+
+	var lastShare models.Share
+	err = database.DB.Where("user_id = ? AND story_id = ?", userId, storyId).Order("created_at DESC").First(&lastShare).Error
+
+	if err != nil && err != gorm.ErrRecordNotFound {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	if err == gorm.ErrRecordNotFound || time.Since(lastShare.CreatedAt) >= 5*time.Minute {
+		share := models.Share{UserID: uint(userId), StoryID: uint(storyId)}
+
+		if err := database.DB.Create(&share).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: share})
+		return
+	}
+
+	c.JSON(http.StatusTooManyRequests, responses.ApiResponse{Status: http.StatusTooManyRequests, Message: messages.StoryShareLimit, Data: nil})
 }

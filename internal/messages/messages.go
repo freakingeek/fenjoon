@@ -19,6 +19,7 @@ const (
 	StoryCharLimit    = "داستان باید حداقل ۲۵ و حداکثر ۲۵۰ حرف باشد"
 	StoryLiked        = "از این داستان خوشت اومد"
 	StoryDisliked     = "با این داستان حال نکردی"
+	StoryShareLimit   = "قبلا این داستان رو به اشتراک گذاشتی"
 	// StoryMinCharLimit = "داستان باید حداقل شامل ۲۵ حرف باشد"
 	// StoryMaxCharLimit = "داستان می‌تواند نهایتا شامل ۲۵۶ حرف باشد"
 
