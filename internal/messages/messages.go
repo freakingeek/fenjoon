@@ -5,6 +5,7 @@ const (
 	GeneralFailed       = "عملیات با شکست مواجه شد"
 	GeneralAccessDenied = "شما مجاز به انجام این کار نیستید"
 	GeneralUnauthorized = "برای دسترسی به این بخش لطفا وارد شوید"
+	GeneralBadRequest   = "اطلاعات وارد شده رو مجددا بررسی کنید"
 
 	OTPInvalid  = "کد وارد شده صحیح نیست"
 	OTPTryAgain = "لطفا بعد از گذشت %d ثانیه مجددا تلاش کنید"
@@ -15,6 +16,9 @@ const (
 	StoryEdited       = "داستان با موفقیت ویرایش شد"
 	StoryDeleted      = "داستان با موفقیت حذف شد"
 	StoryAlreadyLiked = "این داستان رو قبلا لایک کردید"
+	StoryCharLimit    = "داستان باید حداقل ۲۵ و حداکثر ۲۵۰ حرف باشد"
+	StoryLiked        = "از این داستان خوشت اومد"
+	StoryDisliked     = "با این داستان حال نکردی"
 	// StoryMinCharLimit = "داستان باید حداقل شامل ۲۵ حرف باشد"
 	// StoryMaxCharLimit = "داستان می‌تواند نهایتا شامل ۲۵۶ حرف باشد"
 

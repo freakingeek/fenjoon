@@ -13,4 +13,8 @@ func StoryRoutes(r *gin.RouterGroup) {
 	v1.GET(":id", handlers.GetStoryById)
 	v1.PUT(":id", handlers.UpdateStory)
 	v1.DELETE(":id", handlers.DeleteStory)
+
+	v1.GET(":id/likes", handlers.GetStoryLikers)
+	v1.POST(":id/likes", handlers.LikeStoryById)
+	v1.DELETE(":id/likes", handlers.DislikeStoryById)
 }
