@@ -1,10 +1,15 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Like struct {
-	ID        uint      `gorm:"primaryKey" json:"-"`
-	StoryId   uint      `gorm:"not null" json:"-"`
-	UserId    uint      `gorm:"not null" json:"-"`
-	CreatedAt time.Time `json:"-"`
+	ID        uint           `gorm:"primaryKey" json:"-"`
+	StoryID   uint           `gorm:"not null" json:"-"`
+	UserID    uint           `gorm:"not null" json:"-"`
+	CreatedAt time.Time      `json:"-"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
