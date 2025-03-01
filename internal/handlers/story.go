@@ -370,13 +370,43 @@ func GetStoryComments(c *gin.Context) {
 	}
 
 	var comments []models.Comment
+	var total int64
 
-	if err := database.DB.Where("story_id = ?", storyId).Preload("User").Find(&comments).Error; err != nil {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
+	if err := database.DB.Model(&comments).Where("story_id = ?", storyId).Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	if err := database.DB.Where("story_id = ?", storyId).Preload("User").Order("id DESC").Limit(limit).Offset(offset).Find(&comments).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: "Failed to fetch comments", Data: nil})
 		return
 	}
 
-	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: "Success", Data: comments})
+	c.JSON(http.StatusOK, responses.ApiResponse{
+		Status:  http.StatusOK,
+		Message: messages.GeneralSuccess,
+		Data: map[string]interface{}{
+			"comments": comments,
+			"pagination": map[string]interface{}{
+				"total": total,
+				"page":  page,
+				"limit": limit,
+				"pages": int((total + int64(limit) - 1) / int64(limit)),
+			},
+		},
+	})
 }
 
 func ShareStoryById(c *gin.Context) {
@@ -408,7 +438,7 @@ func ShareStoryById(c *gin.Context) {
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: share})
+		c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: true})
 		return
 	}
 
