@@ -310,6 +310,30 @@ func GetStoryLikers(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: users})
 }
 
+func IsStoryLikedByUser(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		return
+	}
+
+	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.GeneralBadRequest, Data: nil})
+		return
+	}
+
+	var like models.Like
+	if err = database.DB.Where("user_id = ? AND story_id = ?", userId, storyId).First(&like).Error; err != nil && err != gorm.ErrRecordNotFound {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	isLiked := err != gorm.ErrRecordNotFound
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: isLiked})
+}
+
 func CommentStoryById(c *gin.Context) {
 	userId, err := auth.GetUserIdFromContext(c)
 	if err != nil {
