@@ -10,6 +10,8 @@ const (
 	OTPInvalid  = "کد وارد شده صحیح نیست"
 	OTPTryAgain = "لطفا بعد از گذشت %d ثانیه مجددا تلاش کنید"
 
+	InvalidRefreshToken = "لطفا مجددا وارد شوید"
+
 	StoryNotFound     = "داستانی یافت نشد"
 	StoryCreated      = "داستان با موفقیت ثبت شد"
 	StoryNotCreated   = "ثبت داستان موفقیت آمیز نبود"

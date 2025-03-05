@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/freakingeek/fenjoon/internal/auth"
@@ -15,6 +16,7 @@ import (
 	"github.com/freakingeek/fenjoon/internal/responses"
 	"github.com/freakingeek/fenjoon/internal/services"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -123,7 +125,18 @@ func VerifyOTP(c *gin.Context) {
 		}
 	}
 
-	token, err := auth.GenerateJWTToken(user.ID)
+	accessToken, err := auth.GenerateJWTToken(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+			Status:  http.StatusInternalServerError,
+			Message: messages.GeneralFailed,
+			Data:    map[string]interface{}{"status": "failed"},
+		})
+		return
+	}
+
+	refreshToken := uuid.New().String()
+	err = database.RedisClient.Set(context.Background(), "refresh:"+refreshToken, user.ID, 30*24*time.Hour).Err()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
 			Status:  http.StatusInternalServerError,
@@ -139,7 +152,75 @@ func VerifyOTP(c *gin.Context) {
 		Data: map[string]interface{}{
 			"status": "success",
 			"tokens": map[string]interface{}{
-				"accessToken": token,
+				"accessToken":  accessToken,
+				"refreshToken": refreshToken,
+			},
+		},
+	})
+}
+
+func RefreshToken(c *gin.Context) {
+	_, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
+			Status:  http.StatusUnauthorized,
+			Message: messages.GeneralUnauthorized,
+			Data:    map[string]interface{}{"status": "failed"},
+		})
+		return
+	}
+
+	var request struct {
+		RefreshToken string `json:"refreshToken" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{
+			Status:  http.StatusBadRequest,
+			Message: messages.GeneralFailed,
+			Data:    map[string]interface{}{"status": "failed"},
+		})
+		return
+	}
+
+	userIDStr, err := database.RedisClient.Get(context.Background(), "refresh:"+request.RefreshToken).Result()
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
+			Status:  http.StatusUnauthorized,
+			Message: messages.InvalidRefreshToken,
+			Data:    map[string]interface{}{"status": "failed"},
+		})
+		return
+	}
+
+	userIDUint, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+			Status:  http.StatusInternalServerError,
+			Message: messages.GeneralFailed,
+			Data:    map[string]interface{}{"status": "failed"},
+		})
+		return
+	}
+
+	newAccessToken, err := auth.GenerateJWTToken(uint(userIDUint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+			Status:  http.StatusInternalServerError,
+			Message: messages.GeneralFailed,
+			Data:    map[string]interface{}{"status": "failed"},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{
+		Status:  http.StatusOK,
+		Message: messages.GeneralSuccess,
+		Data: map[string]interface{}{
+			"status": "success",
+			"tokens": map[string]interface{}{
+				"accessToken":  newAccessToken,
+				"refreshToken": request.RefreshToken,
 			},
 		},
 	})
