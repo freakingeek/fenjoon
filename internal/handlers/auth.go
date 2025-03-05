@@ -46,7 +46,7 @@ func SendOTP(c *gin.Context) {
 	rand.NewSource(time.Now().UnixNano())
 	otp := rand.Intn(90000) + 10000
 
-	err = database.RedisClient.Set(context.Background(), "otp:"+request.Phone, otp, 30*time.Second).Err()
+	err = database.RedisClient.Set(context.Background(), "otp:"+request.Phone, otp, 1*time.Minute).Err()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
 			Status:  http.StatusInternalServerError,
