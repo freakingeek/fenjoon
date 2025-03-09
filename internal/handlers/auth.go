@@ -29,7 +29,7 @@ func SendOTP(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, responses.ApiResponse{
 			Status:  http.StatusBadRequest,
 			Message: messages.GeneralFailed,
-			Data:    map[string]interface{}{"status": "failed"},
+			Data:    nil,
 		})
 		return
 	}
@@ -39,7 +39,7 @@ func SendOTP(c *gin.Context) {
 		c.JSON(http.StatusTooManyRequests, responses.ApiResponse{
 			Status:  http.StatusTooManyRequests,
 			Message: fmt.Sprintf(messages.OTPTryAgain, int(existingTTL.Seconds())),
-			Data:    map[string]interface{}{"status": "failed"},
+			Data:    nil,
 		})
 		return
 	}
@@ -53,7 +53,7 @@ func SendOTP(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
 			Status:  http.StatusInternalServerError,
 			Message: messages.GeneralFailed,
-			Data:    map[string]interface{}{"status": "failed"},
+			Data:    nil,
 		})
 		return
 	}
@@ -80,7 +80,7 @@ func VerifyOTP(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, responses.ApiResponse{
 			Status:  http.StatusBadRequest,
 			Message: messages.GeneralFailed,
-			Data:    map[string]interface{}{"status": "failed"},
+			Data:    nil,
 		})
 		return
 	}
@@ -90,7 +90,7 @@ func VerifyOTP(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, responses.ApiResponse{
 			Status:  http.StatusBadRequest,
 			Message: messages.OTPInvalid,
-			Data:    map[string]interface{}{"status": "failed"},
+			Data:    nil,
 		})
 		return
 	}
@@ -111,7 +111,7 @@ func VerifyOTP(c *gin.Context) {
 				c.JSON(http.StatusInternalServerError, responses.ApiResponse{
 					Status:  http.StatusInternalServerError,
 					Message: messages.GeneralFailed,
-					Data:    map[string]interface{}{"status": "failed"},
+					Data:    nil,
 				})
 				return
 			}
@@ -119,7 +119,7 @@ func VerifyOTP(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, responses.ApiResponse{
 				Status:  http.StatusInternalServerError,
 				Message: messages.GeneralFailed,
-				Data:    map[string]interface{}{"status": "failed"},
+				Data:    nil,
 			})
 			return
 		}
@@ -130,7 +130,7 @@ func VerifyOTP(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
 			Status:  http.StatusInternalServerError,
 			Message: messages.GeneralFailed,
-			Data:    map[string]interface{}{"status": "failed"},
+			Data:    nil,
 		})
 		return
 	}
@@ -141,7 +141,7 @@ func VerifyOTP(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
 			Status:  http.StatusInternalServerError,
 			Message: messages.GeneralFailed,
-			Data:    map[string]interface{}{"status": "failed"},
+			Data:    nil,
 		})
 		return
 	}
@@ -178,7 +178,7 @@ func RefreshToken(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, responses.ApiResponse{
 			Status:  http.StatusBadRequest,
 			Message: messages.GeneralFailed,
-			Data:    map[string]interface{}{"status": "failed"},
+			Data:    nil,
 		})
 		return
 	}
@@ -188,7 +188,7 @@ func RefreshToken(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
 			Status:  http.StatusUnauthorized,
 			Message: messages.InvalidRefreshToken,
-			Data:    map[string]interface{}{"status": "failed"},
+			Data:    nil,
 		})
 		return
 	}
@@ -198,7 +198,7 @@ func RefreshToken(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
 			Status:  http.StatusInternalServerError,
 			Message: messages.GeneralFailed,
-			Data:    map[string]interface{}{"status": "failed"},
+			Data:    nil,
 		})
 		return
 	}
@@ -208,7 +208,7 @@ func RefreshToken(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
 			Status:  http.StatusInternalServerError,
 			Message: messages.GeneralFailed,
-			Data:    map[string]interface{}{"status": "failed"},
+			Data:    nil,
 		})
 		return
 	}
