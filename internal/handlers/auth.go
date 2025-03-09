@@ -97,6 +97,8 @@ func VerifyOTP(c *gin.Context) {
 
 	database.RedisClient.Del(context.Background(), "otp:"+request.Phone)
 
+	isNewUser := false
+
 	var user models.User
 	if err := database.DB.Where("phone = ?", request.Phone).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -115,6 +117,8 @@ func VerifyOTP(c *gin.Context) {
 				})
 				return
 			}
+
+			isNewUser = true
 		} else {
 			c.JSON(http.StatusInternalServerError, responses.ApiResponse{
 				Status:  http.StatusInternalServerError,
@@ -150,7 +154,8 @@ func VerifyOTP(c *gin.Context) {
 		Status:  http.StatusOK,
 		Message: messages.GeneralSuccess,
 		Data: map[string]interface{}{
-			"status": "success",
+			"status":    "success",
+			"isNewUser": isNewUser,
 			"tokens": map[string]interface{}{
 				"accessToken":  accessToken,
 				"refreshToken": refreshToken,
