@@ -165,16 +165,6 @@ func VerifyOTP(c *gin.Context) {
 }
 
 func RefreshToken(c *gin.Context) {
-	_, err := auth.GetUserIdFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
-			Status:  http.StatusUnauthorized,
-			Message: messages.GeneralUnauthorized,
-			Data:    map[string]interface{}{"status": "failed"},
-		})
-		return
-	}
-
 	var request struct {
 		RefreshToken string `json:"refreshToken" binding:"required"`
 	}
