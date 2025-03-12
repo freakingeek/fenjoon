@@ -17,6 +17,7 @@ type Story struct {
 	LikesCount    uint           `gorm:"-" json:"likesCount"`
 	SharesCount   uint           `gorm:"-" json:"sharesCount"`
 	CommentsCount uint           `gorm:"-" json:"commentsCount"`
+	IsLikedByUser bool           `gorm:"-" json:"isLikedByUser"`
 	CreatedAt     time.Time      `json:"createdAt"`
 	UpdatedAt     time.Time      `json:"-"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`

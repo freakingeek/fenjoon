@@ -44,6 +44,8 @@ func GetAllStories(c *gin.Context) {
 	var stories []models.Story
 	var total int64
 
+	userId, _ := auth.GetUserIdFromContext(c)
+
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
@@ -85,10 +87,19 @@ func GetAllStories(c *gin.Context) {
 			return
 		}
 
+		var isLikedByUser bool
+		if err := database.DB.Model(&models.Like{}).
+			Where("story_id = ? AND user_id = ?", stories[i].ID, userId).
+			Select("COUNT(*) > 0").
+			Find(&isLikedByUser).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+			return
+		}
+
 		stories[i].LikesCount = uint(likesCount)
 		stories[i].SharesCount = uint(sharesCount)
 		stories[i].CommentsCount = uint(commentsCount)
-
+		stories[i].IsLikedByUser = isLikedByUser
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{
@@ -108,6 +119,8 @@ func GetAllStories(c *gin.Context) {
 
 func GetStoryById(c *gin.Context) {
 	var story models.Story
+
+	userId, _ := auth.GetUserIdFromContext(c)
 
 	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -138,9 +151,19 @@ func GetStoryById(c *gin.Context) {
 		return
 	}
 
+	var isLikedByUser bool
+	if err := database.DB.Model(&models.Like{}).
+		Where("story_id = ? AND user_id = ?", storyId, userId).
+		Select("COUNT(*) > 0").
+		Find(&isLikedByUser).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
 	story.LikesCount = uint(likesCount)
 	story.SharesCount = uint(sharesCount)
 	story.CommentsCount = uint(commentsCount)
+	story.IsLikedByUser = isLikedByUser
 
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: story})
 }
