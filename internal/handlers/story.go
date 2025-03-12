@@ -463,7 +463,8 @@ func GetStoryComments(c *gin.Context) {
 func ShareStoryById(c *gin.Context) {
 	userId, err := auth.GetUserIdFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		// Ignore share request if user is not logged-in
+		c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: nil})
 		return
 	}
 
