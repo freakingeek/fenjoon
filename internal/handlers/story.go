@@ -100,6 +100,8 @@ func GetAllStories(c *gin.Context) {
 		stories[i].SharesCount = uint(sharesCount)
 		stories[i].CommentsCount = uint(commentsCount)
 		stories[i].IsLikedByUser = isLikedByUser
+		stories[i].IsEditableByUser = userId == stories[i].UserID
+		stories[i].IsDeletableByUser = userId == stories[i].UserID
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{
@@ -164,6 +166,8 @@ func GetStoryById(c *gin.Context) {
 	story.SharesCount = uint(sharesCount)
 	story.CommentsCount = uint(commentsCount)
 	story.IsLikedByUser = isLikedByUser
+	story.IsEditableByUser = userId == story.UserID
+	story.IsDeletableByUser = userId == story.UserID
 
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: story})
 }
