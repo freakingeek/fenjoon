@@ -14,6 +14,7 @@ type User struct {
 	Nickname   string         `gorm:"varchar(50);not null" json:"nickname"`
 	Stories    []Story        `gorm:"foreignKey:UserID" json:"-"`
 	IsVerified bool           `gorm:"default false" json:"isVerified"`
+	IsBot      bool           `gorm:"default false" json:"isBot"`
 	CreatedAt  time.Time      `json:"createdAt"`
 	UpdatedAt  time.Time      `json:"-"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
