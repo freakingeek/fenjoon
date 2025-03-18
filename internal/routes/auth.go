@@ -10,4 +10,6 @@ func AuthRoutes(r *gin.RouterGroup) {
 
 	v1.POST("/otp/send", handlers.SendOTP)
 	v1.POST("/otp/verify", handlers.VerifyOTP)
+
+	v1.POST("/refresh", handlers.RefreshToken)
 }
