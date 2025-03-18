@@ -6,6 +6,7 @@ const (
 	GeneralAccessDenied = "شما مجاز به انجام این کار نیستید"
 	GeneralUnauthorized = "برای دسترسی به این بخش لطفا وارد شوید"
 	GeneralBadRequest   = "اطلاعات وارد شده رو مجددا بررسی کنید"
+	GeneralNotFound     = "موردی یافت نشد"
 
 	OTPInvalid  = "کد وارد شده صحیح نیست"
 	OTPTryAgain = "لطفا بعد از گذشت %d ثانیه مجددا تلاش کنید"
