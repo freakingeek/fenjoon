@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/freakingeek/fenjoon/internal/auth"
@@ -9,6 +10,7 @@ import (
 	"github.com/freakingeek/fenjoon/internal/models"
 	"github.com/freakingeek/fenjoon/internal/responses"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func RegisterPushToken(c *gin.Context) {
@@ -26,8 +28,25 @@ func RegisterPushToken(c *gin.Context) {
 		return
 	}
 
-	pushToken := models.PushToken{Token: request.Token, UserID: userId}
-	if err := database.DB.Where("token = ?", request.Token).FirstOrCreate(&pushToken).Error; err != nil {
+	var pushToken models.PushToken
+	err = database.DB.Where("token = ?", request.Token).First(&pushToken).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		pushToken = models.PushToken{Token: request.Token, UserID: userId}
+		if err := database.DB.Create(&pushToken).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+				Status:  http.StatusInternalServerError,
+				Message: messages.GeneralFailed,
+				Data:    nil,
+			})
+			return
+		}
+	} else if err == nil && pushToken.UserID == 0 && userId != 0 {
+		if err := database.DB.Model(&pushToken).Update("user_id", userId).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+			return
+		}
+	} else if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
 	}
