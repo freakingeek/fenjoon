@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -10,6 +11,8 @@ import (
 	"github.com/freakingeek/fenjoon/internal/messages"
 	"github.com/freakingeek/fenjoon/internal/models"
 	"github.com/freakingeek/fenjoon/internal/responses"
+	"github.com/freakingeek/fenjoon/internal/services"
+	"github.com/freakingeek/fenjoon/internal/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -274,6 +277,15 @@ func LikeStoryById(c *gin.Context) {
 	if err := database.DB.Create(&like).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
+	}
+
+	var pushToken models.PushToken
+	if err := database.DB.Where("user_id = ?", story.UserID).First(&pushToken).Error; err == nil {
+		text := fmt.Sprintf("%s از داستانت خوشش اومد", utils.GetUserDisplayName(user))
+
+		if err := services.SendPushNotification(pushToken.Token, text); err != nil {
+			fmt.Printf("Failed to send push notification: %v\n", err)
+		}
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.StoryLiked, Data: true})
