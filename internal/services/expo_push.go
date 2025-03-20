@@ -4,33 +4,33 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 )
 
 type PushMessage struct {
-	To       string `json:"to"`
-	Title    string `json:"title"`
-	Body     string `json:"body"`
-	Data     any    `json:"data,omitempty"`
-	Sound    string `json:"sound,omitempty"`
-	Priority string `json:"priority,omitempty"`
+	To       []string `json:"to"`
+	Title    string   `json:"title"`
+	Body     string   `json:"body"`
+	Sound    string   `json:"sound,omitempty"`
+	Priority string   `json:"priority,omitempty"`
 }
 
-func SendPushNotification(token string, text string) error {
-	if token == "" {
-		return errors.New("push token is empty")
+func SendPushNotification(tokens []string, text string) error {
+	if len(tokens) == 0 {
+		return errors.New("push token list is empty")
 	}
 
 	message := PushMessage{
-		To:       token,
+		To:       tokens,
 		Title:    "فنجون",
 		Body:     text,
-		Data:     nil,
 		Sound:    "default",
 		Priority: "high",
 	}
 
-	jsonData, err := json.Marshal([]PushMessage{message})
+	jsonData, err := json.Marshal(message)
 	if err != nil {
 		return err
 	}
@@ -51,9 +51,12 @@ func SendPushNotification(token string, text string) error {
 
 	defer resp.Body.Close()
 
+	body, _ := io.ReadAll(resp.Body)
+
 	if resp.StatusCode != http.StatusOK {
-		return errors.New("failed to send push notification")
+		return fmt.Errorf("failed to send push notification: %s", string(body))
 	}
 
+	fmt.Println("Push sent successfully:", string(body))
 	return nil
 }
