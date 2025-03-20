@@ -283,7 +283,7 @@ func LikeStoryById(c *gin.Context) {
 	if err := database.DB.Where("user_id = ?", story.UserID).First(&pushToken).Error; err == nil {
 		text := fmt.Sprintf("%s از داستانت خوشش اومد", utils.GetUserDisplayName(user))
 
-		if err := services.SendPushNotification(pushToken.Token, text); err != nil {
+		if err := services.SendPushNotification([]string{pushToken.Token}, text); err != nil {
 			fmt.Printf("Failed to send push notification: %v\n", err)
 		}
 	}
@@ -399,6 +399,27 @@ func CommentStoryById(c *gin.Context) {
 	if err := database.DB.Create(&comment).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
+	}
+
+	var story models.Story
+	if err := database.DB.First(&story, storyId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
+
+	var user models.User
+	if err := database.DB.First(&user, userId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.UserNotFound, Data: nil})
+		return
+	}
+
+	var pushToken models.PushToken
+	if err := database.DB.Where("user_id = ?", story.UserID).First(&pushToken).Error; err == nil {
+		text := fmt.Sprintf("%s نقد جدیدی روی داستانت ثبت کرد", utils.GetUserDisplayName(user))
+
+		if err := services.SendPushNotification([]string{pushToken.Token}, text); err != nil {
+			fmt.Printf("Failed to send push notification: %v\n", err)
+		}
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: comment})
