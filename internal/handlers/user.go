@@ -26,7 +26,7 @@ func GetUserById(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
 			Status:  http.StatusUnauthorized,
 			Message: messages.GeneralUnauthorized,
-			Data:    map[string]interface{}{"user": nil},
+			Data:    nil,
 		})
 		return
 	}
@@ -36,7 +36,7 @@ func GetUserById(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
 			Status:  http.StatusUnauthorized,
 			Message: messages.GeneralUnauthorized,
-			Data:    map[string]interface{}{"user": nil},
+			Data:    nil,
 		})
 		return
 	}
@@ -47,7 +47,7 @@ func GetUserById(c *gin.Context) {
 		c.JSON(http.StatusNotFound, responses.ApiResponse{
 			Status:  http.StatusNotFound,
 			Message: messages.UserNotFound,
-			Data:    map[string]interface{}{"user": nil},
+			Data:    nil,
 		})
 		return
 	}
@@ -55,7 +55,13 @@ func GetUserById(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.ApiResponse{
 		Status:  http.StatusOK,
 		Message: messages.GeneralSuccess,
-		Data:    user,
+		Data: map[string]interface{}{
+			"id":        user.ID,
+			"firstName": user.FirstName,
+			"lastName":  user.LastName,
+			"nickname":  user.Nickname,
+			"phone":     user.Phone,
+		},
 	})
 }
 
