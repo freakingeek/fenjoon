@@ -31,22 +31,33 @@ func RegisterPushToken(c *gin.Context) {
 	var pushToken models.PushToken
 	err = database.DB.Where("token = ?", request.Token).First(&pushToken).Error
 
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		pushToken = models.PushToken{Token: request.Token, UserID: userId}
-		if err := database.DB.Create(&pushToken).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, responses.ApiResponse{
-				Status:  http.StatusInternalServerError,
-				Message: messages.GeneralFailed,
-				Data:    nil,
-			})
-			return
+	if err == nil {
+		if pushToken.UserID == 0 && userId != 0 {
+			pushToken.UserID = userId
+			if err := database.DB.Save(&pushToken).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+				return
+			}
 		}
-	} else if err == nil && pushToken.UserID == 0 && userId != 0 {
-		if err := database.DB.Model(&pushToken).Update("user_id", userId).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
-			return
+	} else if errors.Is(err, gorm.ErrRecordNotFound) {
+		var existingToken models.PushToken
+		err = database.DB.Where("user_id = ?", userId).First(&existingToken).Error
+
+		if err == nil {
+			existingToken.Token = request.Token
+			if err := database.DB.Save(&existingToken).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+				return
+			}
+		} else {
+			// NOTE: Push token doesn't exist; create a new one
+			newPushToken := models.PushToken{UserID: userId, Token: request.Token}
+			if err := database.DB.Create(&newPushToken).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+				return
+			}
 		}
-	} else if err != nil {
+	} else {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
 	}
