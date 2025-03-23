@@ -28,5 +28,5 @@ const (
 
 	UserNotFound      = "کاربری با این شناسه یافت نشد"
 	UserEdited        = "اطلاعات شما با موفقیت ویرایش شد"
-	UserForbiddenName = "این نام برای انتخاب مجاز نیست"
+	UserForbiddenName = "لطفا فقط از کلمات فارسی استفاده کنید"
 )
