@@ -20,42 +20,23 @@ func isFarsiText(text string) bool {
 	return re.MatchString(text)
 }
 
-func GetUserById(c *gin.Context) {
-	token, err := auth.ParseBearerToken(c.GetHeader("Authorization"))
+func GetCurrentUser(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
-			Status:  http.StatusUnauthorized,
-			Message: messages.GeneralUnauthorized,
-			Data:    nil,
-		})
-		return
-	}
-
-	claims, err := auth.ParseJWTToken(token)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
-			Status:  http.StatusUnauthorized,
-			Message: messages.GeneralUnauthorized,
-			Data:    nil,
-		})
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
 		return
 	}
 
 	var user models.User
-
-	if err := database.DB.Where("id = ?", claims["id"]).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, responses.ApiResponse{
-			Status:  http.StatusNotFound,
-			Message: messages.UserNotFound,
-			Data:    nil,
-		})
+	if err := database.DB.Where("id = ?", userId).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.UserNotFound, Data: nil})
 		return
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{
 		Status:  http.StatusOK,
 		Message: messages.GeneralSuccess,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"id":        user.ID,
 			"firstName": user.FirstName,
 			"lastName":  user.LastName,
@@ -63,6 +44,51 @@ func GetUserById(c *gin.Context) {
 			"phone":     user.Phone,
 		},
 	})
+}
+
+func UpdateCurrentUser(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		return
+	}
+
+	var request struct {
+		FirstName string `json:"firstName"`
+		LastName  string `json:"lastName"`
+		Nickname  string `json:"nickname"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	if (request.FirstName != "" && !isFarsiText(request.FirstName)) ||
+		(request.LastName != "" && !isFarsiText(request.LastName)) ||
+		(request.Nickname != "" && !isFarsiText(request.Nickname)) {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.UserForbiddenName, Data: nil})
+		return
+	}
+
+	var user models.User
+
+	if err := database.DB.Where("id = ?", userId).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.UserNotFound, Data: nil})
+		return
+	}
+
+	updates := map[string]any{}
+	updates["first_name"] = strings.TrimSpace(request.FirstName)
+	updates["last_name"] = strings.TrimSpace(request.LastName)
+	updates["nickname"] = strings.TrimSpace(request.Nickname)
+
+	if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.UserEdited, Data: user})
 }
 
 func GetUserStories(c *gin.Context) {
@@ -143,83 +169,5 @@ func GetUserStories(c *gin.Context) {
 				"pages": int((total + int64(limit) - 1) / int64(limit)), // Calculate total pages
 			},
 		},
-	})
-}
-
-func UpdateUserById(c *gin.Context) {
-	token, err := auth.ParseBearerToken(c.GetHeader("Authorization"))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
-			Status:  http.StatusUnauthorized,
-			Message: messages.GeneralUnauthorized,
-			Data:    map[string]interface{}{"user": nil},
-		})
-		return
-	}
-
-	claims, err := auth.ParseJWTToken(token)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, responses.ApiResponse{
-			Status:  http.StatusUnauthorized,
-			Message: messages.GeneralUnauthorized,
-			Data:    map[string]interface{}{"user": nil},
-		})
-		return
-	}
-
-	var request struct {
-		FirstName string `json:"firstName"`
-		LastName  string `json:"lastName"`
-		Nickname  string `json:"nickname"`
-	}
-
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ApiResponse{
-			Status:  http.StatusBadRequest,
-			Message: messages.GeneralFailed,
-			Data:    map[string]interface{}{"user": nil},
-		})
-		return
-	}
-
-	if (request.FirstName != "" && !isFarsiText(request.FirstName)) ||
-		(request.LastName != "" && !isFarsiText(request.LastName)) ||
-		(request.Nickname != "" && !isFarsiText(request.Nickname)) {
-		c.JSON(http.StatusBadRequest, responses.ApiResponse{
-			Status:  http.StatusBadRequest,
-			Message: "نام، نام خانوادگی و نام مستعار باید فقط شامل حروف فارسی باشند.",
-			Data:    map[string]interface{}{"user": nil},
-		})
-		return
-	}
-
-	var user models.User
-
-	if err := database.DB.Where("id = ?", claims["id"]).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, responses.ApiResponse{
-			Status:  http.StatusNotFound,
-			Message: messages.UserNotFound,
-			Data:    map[string]interface{}{"user": nil},
-		})
-		return
-	}
-
-	updates := map[string]interface{}{}
-	updates["first_name"] = strings.TrimSpace(request.FirstName)
-	updates["last_name"] = strings.TrimSpace(request.LastName)
-	updates["nickname"] = strings.TrimSpace(request.Nickname)
-
-	if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
-			Status:  http.StatusInternalServerError,
-			Message: messages.GeneralFailed,
-			Data:    map[string]interface{}{"user": nil},
-		})
-	}
-
-	c.JSON(http.StatusOK, responses.ApiResponse{
-		Status:  http.StatusOK,
-		Message: messages.UserEdited,
-		Data:    user,
 	})
 }
