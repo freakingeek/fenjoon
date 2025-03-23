@@ -10,5 +10,6 @@ func UserRoutes(r *gin.RouterGroup) {
 
 	v1.GET("/me", handlers.GetCurrentUser)
 	v1.PATCH("/me", handlers.UpdateCurrentUser)
-	v1.GET("/me/stories", handlers.GetUserStories)
+
+	v1.GET(":id/stories", handlers.GetUserStories)
 }
