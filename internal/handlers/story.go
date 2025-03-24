@@ -401,6 +401,15 @@ func CommentStoryById(c *gin.Context) {
 		return
 	}
 
+	if err := database.DB.Preload("User").First(&comment, comment.ID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{
+			Status:  http.StatusInternalServerError,
+			Message: messages.GeneralFailed,
+			Data:    nil,
+		})
+		return
+	}
+
 	var story models.Story
 	if err := database.DB.First(&story, storyId).Error; err != nil {
 		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
