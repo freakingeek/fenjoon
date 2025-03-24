@@ -91,6 +91,47 @@ func UpdateCurrentUser(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.UserEdited, Data: user})
 }
 
+func GetUserById(c *gin.Context) {
+	userId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.GeneralBadRequest, Data: nil})
+		return
+	}
+
+	var user models.User
+	if err := database.DB.Where("id = ?", userId).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.UserNotFound, Data: nil})
+		return
+	}
+
+	var stories []models.Story
+	if err := database.DB.Preload("User").Where("user_id = ?", userId).Find(&stories).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	var comments []models.Comment
+	if err := database.DB.Preload("User").Where("user_id = ?", userId).Find(&comments).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{
+		Status:  http.StatusOK,
+		Message: messages.GeneralSuccess,
+		Data: map[string]any{
+			"user": map[string]any{
+				"id":        user.ID,
+				"firstName": user.FirstName,
+				"lastName":  user.LastName,
+				"nickname":  user.Nickname,
+				"stories":   stories,
+				"comments":  comments,
+			},
+		},
+	})
+}
+
 func GetUserStories(c *gin.Context) {
 	userId, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
