@@ -10,11 +10,12 @@ import (
 )
 
 type PushMessage struct {
-	To       []string `json:"to"`
-	Title    string   `json:"title"`
-	Body     string   `json:"body"`
-	Sound    string   `json:"sound,omitempty"`
-	Priority string   `json:"priority,omitempty"`
+	To        []string `json:"to"`
+	Title     string   `json:"title"`
+	Body      string   `json:"body"`
+	Sound     string   `json:"sound,omitempty"`
+	Priority  string   `json:"priority,omitempty"`
+	ChannelId string   `json:"channelId,omitempty"`
 }
 
 func SendPushNotification(tokens []string, text string) error {
@@ -23,11 +24,12 @@ func SendPushNotification(tokens []string, text string) error {
 	}
 
 	message := PushMessage{
-		To:       tokens,
-		Title:    "فنجون",
-		Body:     text,
-		Sound:    "default",
-		Priority: "high",
+		To:        tokens,
+		Title:     "فنجون",
+		Body:      text,
+		Sound:     "default",
+		Priority:  "high",
+		ChannelId: "default",
 	}
 
 	jsonData, err := json.Marshal(message)
@@ -35,7 +37,7 @@ func SendPushNotification(tokens []string, text string) error {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", "https://exp.host/--/api/v2/push/send", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", "http://38.180.219.86:3001/push", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
