@@ -42,6 +42,7 @@ func GetCurrentUser(c *gin.Context) {
 			"lastName":  user.LastName,
 			"nickname":  user.Nickname,
 			"phone":     user.Phone,
+			"bio":       user.Bio,
 		},
 	})
 }
@@ -57,6 +58,7 @@ func UpdateCurrentUser(c *gin.Context) {
 		FirstName string `json:"firstName"`
 		LastName  string `json:"lastName"`
 		Nickname  string `json:"nickname"`
+		Bio       string `json:"bio" binding:"max=150"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -66,7 +68,8 @@ func UpdateCurrentUser(c *gin.Context) {
 
 	if (request.FirstName != "" && !isFarsiText(request.FirstName)) ||
 		(request.LastName != "" && !isFarsiText(request.LastName)) ||
-		(request.Nickname != "" && !isFarsiText(request.Nickname)) {
+		(request.Nickname != "" && !isFarsiText(request.Nickname)) ||
+		(request.Bio != "" && !isFarsiText(request.Bio)) {
 		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.UserForbiddenName, Data: nil})
 		return
 	}
@@ -82,6 +85,7 @@ func UpdateCurrentUser(c *gin.Context) {
 	updates["first_name"] = strings.TrimSpace(request.FirstName)
 	updates["last_name"] = strings.TrimSpace(request.LastName)
 	updates["nickname"] = strings.TrimSpace(request.Nickname)
+	updates["bio"] = strings.TrimSpace(request.Bio)
 
 	if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
@@ -124,6 +128,7 @@ func GetUserById(c *gin.Context) {
 			"firstName": user.FirstName,
 			"lastName":  user.LastName,
 			"nickname":  user.Nickname,
+			"bio":       user.Bio,
 			"stories":   stories,
 			"comments":  comments,
 		},
