@@ -120,14 +120,12 @@ func GetUserById(c *gin.Context) {
 		Status:  http.StatusOK,
 		Message: messages.GeneralSuccess,
 		Data: map[string]any{
-			"user": map[string]any{
-				"id":        user.ID,
-				"firstName": user.FirstName,
-				"lastName":  user.LastName,
-				"nickname":  user.Nickname,
-				"stories":   stories,
-				"comments":  comments,
-			},
+			"id":        user.ID,
+			"firstName": user.FirstName,
+			"lastName":  user.LastName,
+			"nickname":  user.Nickname,
+			"stories":   stories,
+			"comments":  comments,
 		},
 	})
 }
