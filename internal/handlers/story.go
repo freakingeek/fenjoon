@@ -387,7 +387,7 @@ func CommentStoryById(c *gin.Context) {
 	}
 
 	var request struct {
-		Text string `json:"text" binding:"required,min=5,max=150"`
+		Text string `json:"text" binding:"required,min=5,max=250"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
