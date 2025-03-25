@@ -21,6 +21,7 @@ func StoryRoutes(r *gin.RouterGroup) {
 
 	v1.GET(":id/comments", handlers.GetStoryComments)
 	v1.POST(":id/comments", handlers.CommentStoryById)
+	v1.PUT(":id/comments/:commentId", handlers.UpdateStoryCommentById)
 	v1.DELETE(":id/comments/:commentId", handlers.UncommentStoryById)
 
 	v1.POST(":id/shares", handlers.ShareStoryById)

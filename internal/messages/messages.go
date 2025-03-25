@@ -26,6 +26,10 @@ const (
 	// StoryMinCharLimit = "داستان باید حداقل شامل ۲۵ حرف باشد"
 	// StoryMaxCharLimit = "داستان می‌تواند نهایتا شامل ۲۵۶ حرف باشد"
 
+	CommentNotFound  = "نقدی یافت نشد"
+	CommentEdited    = "نقد با موفقیت ویرایش شد"
+	CommentCharLimit = "نقد باید حداقل ۵ و حداکثر ۲۵۰ حرف باشد"
+
 	UserNotFound      = "کاربری با این شناسه یافت نشد"
 	UserEdited        = "اطلاعات شما با موفقیت ویرایش شد"
 	UserForbiddenName = "لطفا فقط از کلمات فارسی استفاده کنید"
