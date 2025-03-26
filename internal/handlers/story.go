@@ -341,6 +341,8 @@ func GetStoryLikers(c *gin.Context) {
 	if err := database.DB.
 		Joins("JOIN likes ON likes.user_id = users.id").
 		Where("likes.story_id = ?", storyId).
+		Where("likes.deleted_at IS NULL").
+		Select("DISTINCT users.*").
 		Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
