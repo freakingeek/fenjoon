@@ -472,7 +472,7 @@ func GetStoryComments(c *gin.Context) {
 
 	for i := range comments {
 		var likesCount int64
-		if err := database.DB.Model(&models.CommentLike{}).Where("story_id = ?", comments[i].ID).Count(&likesCount).Error; err != nil {
+		if err := database.DB.Model(&models.CommentLike{}).Where("comment_id = ?", comments[i].ID).Count(&likesCount).Error; err != nil {
 			c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.CommentNotFound, Data: nil})
 			return
 		}
