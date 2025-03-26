@@ -446,6 +446,8 @@ func GetStoryComments(c *gin.Context) {
 	var comments []models.Comment
 	var total int64
 
+	userId, _ := auth.GetUserIdFromContext(c)
+
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
@@ -466,6 +468,28 @@ func GetStoryComments(c *gin.Context) {
 	if err := database.DB.Where("story_id = ?", storyId).Preload("User").Order("id DESC").Limit(limit).Offset(offset).Find(&comments).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: "Failed to fetch comments", Data: nil})
 		return
+	}
+
+	for i := range comments {
+		var likesCount int64
+		if err := database.DB.Model(&models.CommentLike{}).Where("story_id = ?", comments[i].ID).Count(&likesCount).Error; err != nil {
+			c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.CommentNotFound, Data: nil})
+			return
+		}
+
+		var isLikedByUser bool
+		if err := database.DB.Model(&models.CommentLike{}).
+			Where("comment_id = ? AND user_id = ?", comments[i].ID, userId).
+			Select("COUNT(*) > 0").
+			Find(&isLikedByUser).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+			return
+		}
+
+		comments[i].LikesCount = uint(likesCount)
+		comments[i].IsLikedByUser = isLikedByUser
+		comments[i].IsEditableByUser = userId == comments[i].UserID
+		comments[i].IsDeletableByUser = userId == comments[i].UserID
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{
