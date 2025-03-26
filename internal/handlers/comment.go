@@ -15,6 +15,44 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func GetCommentById(c *gin.Context) {
+	commentId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.CommentNotFound, Data: nil})
+		return
+	}
+
+	userId, _ := auth.GetUserIdFromContext(c)
+
+	var comment models.Comment
+	if err := database.DB.Preload("User").Where("id = ?", commentId).First(&comment).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.CommentNotFound, Data: nil})
+		return
+	}
+
+	var likesCount int64
+	if err := database.DB.Model(&models.Like{}).Where("comment_id = ?", commentId).Count(&likesCount).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.CommentNotFound, Data: nil})
+		return
+	}
+
+	var isLikedByUser bool
+	if err := database.DB.Model(&models.Like{}).
+		Where("comment_id = ? AND user_id = ?", commentId, userId).
+		Select("COUNT(*) > 0").
+		Find(&isLikedByUser).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	comment.LikesCount = uint(likesCount)
+	comment.IsLikedByUser = isLikedByUser
+	comment.IsEditableByUser = userId == comment.UserID
+	comment.IsDeletableByUser = userId == comment.UserID
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: comment})
+}
+
 func DeleteComment(c *gin.Context) {
 	userId, err := auth.GetUserIdFromContext(c)
 	if err != nil {

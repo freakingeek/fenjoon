@@ -8,6 +8,7 @@ import (
 func CommentRoutes(r *gin.RouterGroup) {
 	v1 := r.Group("/comments")
 
+	v1.GET(":id", handlers.GetCommentById)
 	v1.PUT(":id", handlers.UpdateComment)
 	v1.DELETE(":id", handlers.DeleteComment)
 
