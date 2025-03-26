@@ -1,0 +1,125 @@
+package handlers
+
+import (
+	"fmt"
+	"net/http"
+	"strconv"
+
+	"github.com/freakingeek/fenjoon/internal/auth"
+	"github.com/freakingeek/fenjoon/internal/database"
+	"github.com/freakingeek/fenjoon/internal/messages"
+	"github.com/freakingeek/fenjoon/internal/models"
+	"github.com/freakingeek/fenjoon/internal/responses"
+	"github.com/freakingeek/fenjoon/internal/services"
+	"github.com/freakingeek/fenjoon/internal/utils"
+	"github.com/gin-gonic/gin"
+)
+
+func LikeCommentById(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		return
+	}
+
+	commentId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.CommentNotFound, Data: nil})
+		return
+	}
+
+	var comment models.Comment
+	if err := database.DB.First(&comment, commentId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.CommentNotFound, Data: nil})
+		return
+	}
+
+	var user models.User
+	if err := database.DB.First(&user, userId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.UserNotFound, Data: nil})
+		return
+	}
+
+	var existingLike models.CommentLike
+	if err := database.DB.Where("comment_id = ? AND user_id = ?", commentId, userId).First(&existingLike).Error; err == nil {
+		c.JSON(http.StatusConflict, responses.ApiResponse{Status: http.StatusConflict, Message: messages.StoryAlreadyLiked, Data: nil})
+		return
+	}
+
+	commentLike := models.CommentLike{CommentID: uint(commentId), UserID: userId}
+	if err := database.DB.Create(&commentLike).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	var pushToken models.PushToken
+	if err := database.DB.Where("user_id = ?", comment.UserID).First(&pushToken).Error; err == nil {
+		text := fmt.Sprintf("%s از نقدت خوشش اومد", utils.GetUserDisplayName(user))
+
+		if err := services.SendPushNotification([]string{pushToken.Token}, text); err != nil {
+			fmt.Printf("Failed to send push notification: %v\n", err)
+		}
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.CommentLiked, Data: true})
+}
+
+func DislikeCommentById(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		return
+	}
+
+	commentId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.CommentNotFound, Data: nil})
+		return
+	}
+
+	var comment models.Comment
+	if err := database.DB.First(&comment, commentId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.CommentNotFound, Data: nil})
+		return
+	}
+
+	var commentLike models.CommentLike
+	if err := database.DB.Where("comment_id = ? AND user_id = ?", commentId, userId).First(&commentLike).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.CommentNotFound, Data: nil})
+		return
+	}
+
+	if err := database.DB.Delete(&commentLike).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.CommentDisliked, Data: true})
+}
+
+func GetCommentLikers(c *gin.Context) {
+	commentId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.GeneralBadRequest, Data: nil})
+		return
+	}
+
+	var comment models.Comment
+	if err := database.DB.First(&comment, commentId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
+
+	var users []models.User
+	if err := database.DB.
+		Joins("JOIN comment_likes ON comment_likes.user_id = users.id").
+		Where("comment_likes.comment_id = ?", commentId).
+		Where("comment_likes.deleted_at IS NULL").
+		Select("DISTINCT users.*").
+		Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: users})
+}

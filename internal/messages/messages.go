@@ -28,6 +28,8 @@ const (
 
 	CommentNotFound  = "نقدی یافت نشد"
 	CommentEdited    = "نقد با موفقیت ویرایش شد"
+	CommentLiked     = "از این نقد خوشت اومد"
+	CommentDisliked  = "با این نقد حال نکردی"
 	CommentCharLimit = "نقد باید حداقل ۵ و حداکثر ۲۵۰ حرف باشد"
 
 	UserNotFound      = "کاربری با این شناسه یافت نشد"

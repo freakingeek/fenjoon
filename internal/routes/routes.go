@@ -9,4 +9,5 @@ func SetupRoutes(r *gin.Engine) {
 	AuthRoutes(v1)
 	PushRoutes(v1)
 	StoryRoutes(v1)
+	CommentRoutes(v1)
 }
