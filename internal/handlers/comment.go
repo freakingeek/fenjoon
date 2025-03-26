@@ -15,6 +15,71 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func DeleteComment(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		return
+	}
+
+	commentId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.CommentNotFound, Data: nil})
+		return
+	}
+
+	var comment models.Comment
+	if err := database.DB.Preload("User").Where("id = ? AND user_id = ?", commentId, userId).First(&comment).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.CommentNotFound, Data: nil})
+		return
+	}
+
+	if err := database.DB.Delete(&comment).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.CommentDeleted, Data: comment})
+}
+
+func UpdateComment(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		return
+	}
+
+	var request struct {
+		Text string `json:"text" binding:"required,min=5,max=250"`
+	}
+
+	commentId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.CommentNotFound, Data: nil})
+		return
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.CommentCharLimit, Data: nil})
+		return
+	}
+
+	var comment models.Comment
+	if err := database.DB.Preload("User").Where("id = ? AND user_id = ?", commentId, userId).First(&comment).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.CommentNotFound, Data: nil})
+		return
+	}
+
+	comment.Text = request.Text
+
+	if err := database.DB.Save(&comment).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.CommentEdited, Data: comment})
+}
+
 func LikeCommentById(c *gin.Context) {
 	userId, err := auth.GetUserIdFromContext(c)
 	if err != nil {
@@ -42,7 +107,7 @@ func LikeCommentById(c *gin.Context) {
 
 	var existingLike models.CommentLike
 	if err := database.DB.Where("comment_id = ? AND user_id = ?", commentId, userId).First(&existingLike).Error; err == nil {
-		c.JSON(http.StatusConflict, responses.ApiResponse{Status: http.StatusConflict, Message: messages.StoryAlreadyLiked, Data: nil})
+		c.JSON(http.StatusConflict, responses.ApiResponse{Status: http.StatusConflict, Message: messages.CommentAlreadyLiked, Data: nil})
 		return
 	}
 
@@ -106,7 +171,7 @@ func GetCommentLikers(c *gin.Context) {
 
 	var comment models.Comment
 	if err := database.DB.First(&comment, commentId).Error; err != nil {
-		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.CommentNotFound, Data: nil})
 		return
 	}
 

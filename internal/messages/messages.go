@@ -26,11 +26,13 @@ const (
 	// StoryMinCharLimit = "داستان باید حداقل شامل ۲۵ حرف باشد"
 	// StoryMaxCharLimit = "داستان می‌تواند نهایتا شامل ۲۵۶ حرف باشد"
 
-	CommentNotFound  = "نقدی یافت نشد"
-	CommentEdited    = "نقد با موفقیت ویرایش شد"
-	CommentLiked     = "از این نقد خوشت اومد"
-	CommentDisliked  = "با این نقد حال نکردی"
-	CommentCharLimit = "نقد باید حداقل ۵ و حداکثر ۲۵۰ حرف باشد"
+	CommentNotFound     = "نقدی یافت نشد"
+	CommentEdited       = "نقد با موفقیت ویرایش شد"
+	CommentLiked        = "از این نقد خوشت اومد"
+	CommentDisliked     = "با این نقد حال نکردی"
+	CommentAlreadyLiked = "این نقد رو قبلا لایک کردید"
+	CommentDeleted      = "نقد با موفقیت حذف شد"
+	CommentCharLimit    = "نقد باید حداقل ۵ و حداکثر ۲۵۰ حرف باشد"
 
 	UserNotFound      = "کاربری با این شناسه یافت نشد"
 	UserEdited        = "اطلاعات شما با موفقیت ویرایش شد"

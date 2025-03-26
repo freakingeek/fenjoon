@@ -230,16 +230,16 @@ func DeleteStory(c *gin.Context) {
 	var story models.Story
 
 	if err := database.DB.Preload("User").Where("id = ? AND user_id = ?", storyId, userId).First(&story).Error; err != nil {
-		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: map[string]interface{}{"story": nil}})
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
 		return
 	}
 
 	if err := database.DB.Delete(&story).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: map[string]interface{}{"story": story}})
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
 	}
 
-	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.StoryDeleted, Data: map[string]interface{}{"story": story}})
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.StoryDeleted, Data: story})
 }
 
 func LikeStoryById(c *gin.Context) {
@@ -434,65 +434,6 @@ func CommentStoryById(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: comment})
-}
-
-func UncommentStoryById(c *gin.Context) {
-	userId, err := auth.GetUserIdFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
-		return
-	}
-
-	commentId, err := strconv.ParseUint(c.Param("commentId"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.StoryNotFound, Data: nil})
-		return
-	}
-
-	if err := database.DB.Where("id = ? AND user_id = ?", commentId, userId).Delete(&models.Comment{}).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
-		return
-	}
-
-	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: true})
-}
-
-func UpdateStoryCommentById(c *gin.Context) {
-	userId, err := auth.GetUserIdFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
-		return
-	}
-
-	var request struct {
-		Text string `json:"text" binding:"required,min=5,max=250"`
-	}
-
-	commentId, err := strconv.ParseUint(c.Param("commentId"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.CommentNotFound, Data: nil})
-		return
-	}
-
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.CommentCharLimit, Data: nil})
-		return
-	}
-
-	var comment models.Comment
-	if err := database.DB.Preload("User").Where("id = ? AND user_id = ?", commentId, userId).First(&comment).Error; err != nil {
-		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.CommentNotFound, Data: nil})
-		return
-	}
-
-	comment.Text = request.Text
-
-	if err := database.DB.Save(&comment).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
-		return
-	}
-
-	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.CommentEdited, Data: comment})
 }
 
 func GetStoryComments(c *gin.Context) {
