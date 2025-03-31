@@ -37,4 +37,6 @@ const (
 	UserNotFound      = "کاربری با این شناسه یافت نشد"
 	UserEdited        = "اطلاعات شما با موفقیت ویرایش شد"
 	UserForbiddenName = "لطفا فقط از کلمات فارسی استفاده کنید"
+
+	ReportNotFound = "گزارشی یافت نشد"
 )
