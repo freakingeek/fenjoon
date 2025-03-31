@@ -17,6 +17,7 @@ type User struct {
 	Notifications []Notification `gorm:"foreignKey:UserID" json:"-"`
 	IsVerified    bool           `gorm:"default false" json:"isVerified"`
 	IsBot         bool           `gorm:"default false" json:"isBot"`
+	IsAdmin       bool           `gorm:"default false" json:"-"`
 	CreatedAt     time.Time      `json:"createdAt"`
 	UpdatedAt     time.Time      `json:"-"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
