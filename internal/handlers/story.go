@@ -553,3 +553,34 @@ func ShareStoryById(c *gin.Context) {
 
 	c.JSON(http.StatusTooManyRequests, responses.ApiResponse{Status: http.StatusTooManyRequests, Message: messages.StoryShareLimit, Data: nil})
 }
+
+func ReportStory(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		return
+	}
+
+	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
+
+	var request struct {
+		Reason string `json:"reason" binding:"required,min=5,max=250"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.GeneralBadRequest, Data: nil})
+		return
+	}
+
+	report := models.StoryReport{Reason: request.Reason, UserID: userId, StoryID: uint(storyId)}
+	if err := database.DB.Preload("Story.User").Create(&report).First(&report).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.StoryCreated, Data: report})
+}
