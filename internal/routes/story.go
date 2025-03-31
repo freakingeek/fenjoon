@@ -23,4 +23,6 @@ func StoryRoutes(r *gin.RouterGroup) {
 	v1.POST(":id/comments", handlers.CommentStoryById)
 
 	v1.POST(":id/shares", handlers.ShareStoryById)
+
+	v1.POST(":id/reports", handlers.ReportStory)
 }
