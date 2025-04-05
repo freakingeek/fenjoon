@@ -20,6 +20,7 @@ func main() {
 	database.InitRedis()
 
 	r := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"https://fenjoon.vercel.app", "http://localhost:3000"},
