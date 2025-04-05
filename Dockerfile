@@ -10,8 +10,8 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o /fenjoon
+RUN go build -o /cmd/fenjoon
 
 EXPOSE 8080
 
-ENTRYPOINT [ "/fenjoon" ]
+ENTRYPOINT [ "/cmd/fenjoon" ]
