@@ -342,18 +342,64 @@ func GetStoryLikers(c *gin.Context) {
 		return
 	}
 
-	var users []models.User
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
+	var total int64
 	if err := database.DB.
-		Joins("JOIN likes ON likes.user_id = users.id").
+		Table("likes").
 		Where("likes.story_id = ?", storyId).
 		Where("likes.deleted_at IS NULL").
-		Select("DISTINCT users.*").
-		Find(&users).Error; err != nil {
+		Distinct("likes.user_id").
+		Count(&total).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
 	}
 
-	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: users})
+	var userIDs []uint
+	if err := database.DB.
+		Table("likes").
+		Select("likes.user_id").
+		Where("likes.story_id = ?", storyId).
+		Where("likes.deleted_at IS NULL").
+		Order("likes.created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Pluck("user_id", &userIDs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	var users []models.User
+	if err := database.DB.
+		Preload("Stories").
+		Find(&users, userIDs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{
+		Status:  http.StatusOK,
+		Message: messages.GeneralSuccess,
+		Data: map[string]any{
+			"users": users,
+			"pagination": map[string]any{
+				"total": total,
+				"page":  page,
+				"limit": limit,
+				"pages": int((total + int64(limit) - 1) / int64(limit)),
+			},
+		},
+	})
 }
 
 func IsStoryLikedByUser(c *gin.Context) {
