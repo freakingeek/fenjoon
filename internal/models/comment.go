@@ -11,6 +11,7 @@ type Comment struct {
 	StoryID           uint           `gorm:"not null" json:"-"`
 	UserID            uint           `gorm:"not null" json:"-"`
 	User              User           `gorm:"foreignKey:UserID" json:"user"`
+	Story             Story          `gorm:"foreignKey:StoryID" json:"story"`
 	Text              string         `gorm:"type:varchar(500);not null" json:"text"`
 	Likes             []CommentLike  `gorm:"foreignKey:CommentID" json:"-"`
 	LikesCount        uint           `gorm:"-" json:"likesCount"`

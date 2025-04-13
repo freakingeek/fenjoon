@@ -128,13 +128,20 @@ func GetUserStories(c *gin.Context) {
 		return
 	}
 
+	var user models.User
+	if err := database.DB.First(&user, userId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.UserNotFound, Data: nil})
+		return
+	}
+
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
 	if page < 1 {
 		page = 1
 	}
-	if limit < 1 {
+
+	if limit < 1 || limit > 50 {
 		limit = 10
 	}
 
@@ -202,13 +209,20 @@ func GetUserComments(c *gin.Context) {
 		return
 	}
 
+	var user models.User
+	if err := database.DB.First(&user, userId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.UserNotFound, Data: nil})
+		return
+	}
+
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
 	if page < 1 {
 		page = 1
 	}
-	if limit < 1 {
+
+	if limit < 1 || limit > 50 {
 		limit = 10
 	}
 
@@ -222,7 +236,7 @@ func GetUserComments(c *gin.Context) {
 		return
 	}
 
-	if err := database.DB.Preload("User").Order("id DESC").Where("user_id = ?", userId).Limit(limit).Offset(offset).Find(&comments).Error; err != nil {
+	if err := database.DB.Preload("User").Preload("Story.User").Order("id DESC").Where("user_id = ?", userId).Limit(limit).Offset(offset).Find(&comments).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
 	}
@@ -247,6 +261,33 @@ func GetUserComments(c *gin.Context) {
 		comments[i].IsLikedByUser = isLikedByUser
 		comments[i].IsEditableByUser = uint(userId) == comments[i].UserID
 		comments[i].IsDeletableByUser = uint(userId) == comments[i].UserID
+
+		var storyLikesCount int64
+		if err := database.DB.Model(&models.Story{}).Where("id = ?", comments[i].StoryID).Count(&storyLikesCount).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+			return
+		}
+
+		var storyCommentsCount int64
+		if err := database.DB.Model(&models.Comment{}).Where("story_id = ?", comments[i].StoryID).Count(&storyCommentsCount).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+			return
+		}
+
+		var isStoryLikedByUser bool
+		if err := database.DB.Model(&models.Story{}).
+			Where("id = ? AND user_id = ?", comments[i].StoryID, userId).
+			Select("COUNT(*) > 0").
+			Find(&isStoryLikedByUser).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+			return
+		}
+
+		comments[i].Story.LikesCount = uint(storyLikesCount)
+		comments[i].Story.IsLikedByUser = isStoryLikedByUser
+		comments[i].Story.CommentsCount = uint(storyCommentsCount)
+		comments[i].Story.IsEditableByUser = uint(userId) == comments[i].Story.UserID
+		comments[i].Story.IsDeletableByUser = uint(userId) == comments[i].Story.UserID
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{
