@@ -227,6 +227,28 @@ func GetUserComments(c *gin.Context) {
 		return
 	}
 
+	for i := range comments {
+		var likesCount int64
+		if err := database.DB.Model(&models.CommentLike{}).Where("comment_id = ?", comments[i].ID).Count(&likesCount).Error; err != nil {
+			c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.CommentNotFound, Data: nil})
+			return
+		}
+
+		var isLikedByUser bool
+		if err := database.DB.Model(&models.CommentLike{}).
+			Where("comment_id = ? AND user_id = ?", comments[i].ID, userId).
+			Select("COUNT(*) > 0").
+			Find(&isLikedByUser).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+			return
+		}
+
+		comments[i].LikesCount = uint(likesCount)
+		comments[i].IsLikedByUser = isLikedByUser
+		comments[i].IsEditableByUser = uint(userId) == comments[i].UserID
+		comments[i].IsDeletableByUser = uint(userId) == comments[i].UserID
+	}
+
 	c.JSON(http.StatusOK, responses.ApiResponse{
 		Status:  http.StatusOK,
 		Message: messages.GeneralSuccess,
