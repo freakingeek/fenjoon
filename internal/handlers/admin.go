@@ -40,7 +40,8 @@ func GetStoryReports(c *gin.Context) {
 	if page < 1 {
 		page = 1
 	}
-	if limit < 1 {
+
+	if limit < 1 || limit > 50 {
 		limit = 10
 	}
 
