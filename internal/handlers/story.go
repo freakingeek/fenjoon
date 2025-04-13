@@ -357,32 +357,23 @@ func GetStoryLikers(c *gin.Context) {
 	var total int64
 	if err := database.DB.
 		Table("likes").
-		Where("likes.story_id = ?", storyId).
-		Where("likes.deleted_at IS NULL").
-		Distinct("likes.user_id").
+		Where("story_id = ?", storyId).
+		Where("deleted_at IS NULL").
 		Count(&total).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
-		return
-	}
-
-	var userIDs []uint
-	if err := database.DB.
-		Table("likes").
-		Select("likes.user_id").
-		Where("likes.story_id = ?", storyId).
-		Where("likes.deleted_at IS NULL").
-		Order("likes.created_at DESC").
-		Limit(limit).
-		Offset(offset).
-		Pluck("user_id", &userIDs).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
 	}
 
 	var users []models.User
 	if err := database.DB.
+		Joins("JOIN likes ON likes.user_id = users.id").
+		Where("likes.story_id = ?", storyId).
+		Where("likes.deleted_at IS NULL").
 		Preload("Stories").
-		Find(&users, userIDs).Error; err != nil {
+		Order("likes.created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
 	}
