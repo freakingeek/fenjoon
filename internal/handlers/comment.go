@@ -213,16 +213,53 @@ func GetCommentLikers(c *gin.Context) {
 		return
 	}
 
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
+	var total int64
+	if err := database.DB.
+		Table("comment_likes").
+		Where("comment_id = ?", commentId).
+		Where("deleted_at IS NULL").
+		Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
 	var users []models.User
 	if err := database.DB.
 		Joins("JOIN comment_likes ON comment_likes.user_id = users.id").
 		Where("comment_likes.comment_id = ?", commentId).
 		Where("comment_likes.deleted_at IS NULL").
-		Select("DISTINCT users.*").
+		Preload("Stories").
+		Order("comment_likes.created_at DESC").
+		Limit(limit).
+		Offset(offset).
 		Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
 	}
 
-	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: users})
+	c.JSON(http.StatusOK, responses.ApiResponse{
+		Status:  http.StatusOK,
+		Message: messages.GeneralSuccess,
+		Data: map[string]any{
+			"users": users,
+			"pagination": map[string]any{
+				"total": total,
+				"page":  page,
+				"limit": limit,
+				"pages": int((total + int64(limit) - 1) / int64(limit)),
+			},
+		},
+	})
 }
