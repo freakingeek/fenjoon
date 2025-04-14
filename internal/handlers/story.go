@@ -624,3 +624,63 @@ func ReportStory(c *gin.Context) {
 
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.StoryCreated, Data: report})
 }
+
+func GetAuthorOtherStories(c *gin.Context) {
+	userId, _ := auth.GetUserIdFromContext(c)
+
+	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
+
+	var story models.Story
+	if err := database.DB.First(&story, storyId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
+
+	var relatedStories []models.Story
+	if err := database.DB.Where("user_id = ? AND id != ?", story.UserID, story.ID).Preload("User").Order("id DESC").Limit(5).Find(&relatedStories).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	for i := range relatedStories {
+		var likesCount int64
+		if err := database.DB.Model(&models.Like{}).Where("story_id = ?", relatedStories[i].ID).Count(&likesCount).Error; err != nil {
+			c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+			return
+		}
+
+		var sharesCount int64
+		if err := database.DB.Model(&models.Share{}).Where("story_id = ?", relatedStories[i].ID).Count(&sharesCount).Error; err != nil {
+			c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+			return
+		}
+
+		var commentsCount int64
+		if err := database.DB.Model(&models.Comment{}).Where("story_id = ?", relatedStories[i].ID).Count(&commentsCount).Error; err != nil {
+			c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+			return
+		}
+
+		var isLikedByUser bool
+		if err := database.DB.Model(&models.Like{}).
+			Where("story_id = ? AND user_id = ?", relatedStories[i].ID, userId).
+			Select("COUNT(*) > 0").
+			Find(&isLikedByUser).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+			return
+		}
+
+		relatedStories[i].LikesCount = uint(likesCount)
+		relatedStories[i].SharesCount = uint(sharesCount)
+		relatedStories[i].CommentsCount = uint(commentsCount)
+		relatedStories[i].IsLikedByUser = isLikedByUser
+		relatedStories[i].IsEditableByUser = userId == relatedStories[i].UserID
+		relatedStories[i].IsDeletableByUser = userId == relatedStories[i].UserID
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: relatedStories})
+}
