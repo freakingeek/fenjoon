@@ -27,4 +27,6 @@ func StoryRoutes(r *gin.RouterGroup) {
 	v1.POST(":id/reports", handlers.ReportStory)
 
 	v1.GET(":id/related-by-author", handlers.GetAuthorOtherStories)
+
+	v1.PATCH(":id/visibility", handlers.ChangeStoryVisibility)
 }
