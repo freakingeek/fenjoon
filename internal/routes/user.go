@@ -14,4 +14,6 @@ func UserRoutes(r *gin.RouterGroup) {
 	v1.GET(":id", handlers.GetUserById)
 	v1.GET(":id/stories", handlers.GetUserStories)
 	v1.GET(":id/comments", handlers.GetUserComments)
+
+	v1.GET(":id/private-story-count", handlers.GetUserPrivateStoriesCount)
 }
