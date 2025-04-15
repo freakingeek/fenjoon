@@ -18,6 +18,7 @@ type User struct {
 	IsVerified    bool           `gorm:"default false" json:"isVerified"`
 	IsBot         bool           `gorm:"default false" json:"isBot"`
 	IsAdmin       bool           `gorm:"default false" json:"-"`
+	IsPremium     bool           `gorm:"default false" json:"isPremium"`
 	CreatedAt     time.Time      `json:"createdAt"`
 	UpdatedAt     time.Time      `json:"-"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
