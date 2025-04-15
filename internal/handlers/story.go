@@ -62,12 +62,17 @@ func GetAllStories(c *gin.Context) {
 
 	offset := (page - 1) * limit
 
-	if err := database.DB.Model(&models.Story{}).Count(&total).Error; err != nil {
+	if err := database.DB.Model(&models.Story{}).Where("is_private = ?", false).Count(&total).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
 	}
 
-	if err := database.DB.Preload("User").Order("id DESC").Limit(limit).Offset(offset).Find(&stories).Error; err != nil {
+	if err := database.DB.Preload("User").
+		Where("is_private = ?", false).
+		Order("id DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&stories).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
 	}
@@ -135,6 +140,11 @@ func GetStoryById(c *gin.Context) {
 	}
 
 	if err := database.DB.Preload("User").Where("id = ?", storyId).First(&story).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
+
+	if story.IsPrivate && story.UserID != userId {
 		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
 		return
 	}
@@ -640,8 +650,19 @@ func GetAuthorOtherStories(c *gin.Context) {
 		return
 	}
 
+	if story.IsPrivate && story.UserID != userId {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+		return
+	}
+
 	var relatedStories []models.Story
-	if err := database.DB.Where("user_id = ? AND id != ?", story.UserID, story.ID).Preload("User").Order("id DESC").Limit(5).Find(&relatedStories).Error; err != nil {
+	query := database.DB.Where("user_id = ? AND id != ?", story.UserID, story.ID)
+	
+	if userId != story.UserID {
+		query = query.Where("is_private = ?", false)
+	}
+	
+	if err := query.Preload("User").Order("id DESC").Limit(5).Find(&relatedStories).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
 	}

@@ -122,14 +122,16 @@ func GetUserById(c *gin.Context) {
 }
 
 func GetUserStories(c *gin.Context) {
-	userId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	userId, _ := auth.GetUserIdFromContext(c)
+
+	targetUserId, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.GeneralBadRequest, Data: nil})
 		return
 	}
 
 	var user models.User
-	if err := database.DB.First(&user, userId).Error; err != nil {
+	if err := database.DB.First(&user, targetUserId).Error; err != nil {
 		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.UserNotFound, Data: nil})
 		return
 	}
@@ -147,15 +149,20 @@ func GetUserStories(c *gin.Context) {
 
 	offset := (page - 1) * limit
 
-	var stories []models.Story
-	var total int64
+	query := database.DB.Model(&models.Story{}).Where("user_id = ?", targetUserId)
 
-	if err := database.DB.Model(&models.Story{}).Where("user_id = ?", userId).Count(&total).Error; err != nil {
+	if uint(targetUserId) != userId {
+		query = query.Where("is_private = ?", false)
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
 	}
 
-	if err := database.DB.Preload("User").Order("id DESC").Where("user_id = ?", userId).Limit(limit).Offset(offset).Find(&stories).Error; err != nil {
+	var stories []models.Story
+	if err := query.Preload("User").Order("id DESC").Limit(limit).Offset(offset).Find(&stories).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
 	}
@@ -185,6 +192,8 @@ func GetUserStories(c *gin.Context) {
 		stories[i].LikesCount = uint(likesCount)
 		stories[i].CommentsCount = uint(commentsCount)
 		stories[i].IsLikedByUser = isLikedByUser
+		stories[i].IsEditableByUser = userId == stories[i].UserID
+		stories[i].IsDeletableByUser = userId == stories[i].UserID
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{
