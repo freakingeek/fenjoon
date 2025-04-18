@@ -155,12 +155,19 @@ func LikeCommentById(c *gin.Context) {
 		return
 	}
 
-	var pushToken models.PushToken
-	if err := database.DB.Where("user_id = ?", comment.UserID).First(&pushToken).Error; err == nil {
+	if userId != comment.UserID {
 		text := fmt.Sprintf("%s از نقدت خوشش اومد", utils.GetUserDisplayName(user))
 
-		if err := services.SendPushNotification([]string{pushToken.Token}, text); err != nil {
-			fmt.Printf("Failed to send push notification: %v\n", err)
+		notification := models.Notification{UserID: comment.UserID, Title: "نقدت پسندیده شد!", Message: text, Url: fmt.Sprintf("/story/%d", comment.StoryID)}
+		if err := services.SendInAppNotification(notification); err != nil {
+			fmt.Printf("Failed to send in-app notification: %v\n", err)
+		}
+
+		var pushToken models.PushToken
+		if err := database.DB.Where("user_id = ?", comment.UserID).First(&pushToken).Error; err == nil {
+			if err := services.SendPushNotification([]string{pushToken.Token}, text); err != nil {
+				fmt.Printf("Failed to send push notification: %v\n", err)
+			}
 		}
 	}
 
