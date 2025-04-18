@@ -25,4 +25,6 @@ func StoryRoutes(r *gin.RouterGroup) {
 	v1.POST(":id/shares", handlers.ShareStoryById)
 
 	v1.POST(":id/reports", handlers.ReportStory)
+
+	v1.GET(":id/related-by-author", handlers.GetAuthorOtherStories)
 }
