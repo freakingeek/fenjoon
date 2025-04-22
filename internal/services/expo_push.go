@@ -37,7 +37,7 @@ func SendPushNotification(tokens []string, text string) error {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", "http://38.180.219.86:3001/push", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", "https://proxy.fnjo.ir/push/send", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
