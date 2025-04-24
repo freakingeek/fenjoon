@@ -17,7 +17,7 @@ type Story struct {
 	LikesCount        uint           `gorm:"-" json:"likesCount"`
 	SharesCount       uint           `gorm:"-" json:"sharesCount"`
 	CommentsCount     uint           `gorm:"-" json:"commentsCount"`
-	IsPrivate         bool           `gorm:"default false" json:"isPrivate"`
+	IsPrivate         bool           `gorm:"default:false" json:"isPrivate"`
 	IsLikedByUser     bool           `gorm:"-" json:"isLikedByUser"`
 	IsEditableByUser  bool           `gorm:"-" json:"isEditableByUser"`
 	IsDeletableByUser bool           `gorm:"-" json:"isDeletableByUser"`
