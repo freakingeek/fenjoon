@@ -290,8 +290,7 @@ func LikeStoryById(c *gin.Context) {
 		return
 	}
 
-	var pushToken models.PushToken
-	if err := database.DB.Where("user_id = ?", story.UserID).First(&pushToken).Error; err == nil {
+	if userId != story.UserID {
 		text := fmt.Sprintf("%s از داستانت خوشش اومد", utils.GetUserDisplayName(user))
 
 		notification := models.Notification{UserID: story.UserID, Title: "داستانت پسندیده شد!", Message: text, Url: fmt.Sprintf("/author/%d", story.UserID)}
@@ -299,8 +298,11 @@ func LikeStoryById(c *gin.Context) {
 			fmt.Printf("Failed to send in-app notification: %v\n", err)
 		}
 
-		if err := services.SendPushNotification([]string{pushToken.Token}, text); err != nil {
-			fmt.Printf("Failed to send push notification: %v\n", err)
+		var pushToken models.PushToken
+		if err := database.DB.Where("user_id = ?", story.UserID).First(&pushToken).Error; err == nil {
+			if err := services.SendPushNotification([]string{pushToken.Token}, text); err != nil {
+				fmt.Printf("Failed to send push notification: %v\n", err)
+			}
 		}
 	}
 
@@ -478,8 +480,7 @@ func CommentStoryById(c *gin.Context) {
 		return
 	}
 
-	var pushToken models.PushToken
-	if err := database.DB.Where("user_id = ?", story.UserID).First(&pushToken).Error; err == nil {
+	if userId != story.UserID {
 		text := fmt.Sprintf("%s نقد جدیدی روی داستانت ثبت کرد", utils.GetUserDisplayName(user))
 
 		notification := models.Notification{UserID: story.UserID, Title: "داستانت نقد جدیدی گرفت!", Message: text, Url: fmt.Sprintf("/story/%d", story.ID)}
@@ -487,8 +488,11 @@ func CommentStoryById(c *gin.Context) {
 			fmt.Printf("Failed to send in-app notification: %v\n", err)
 		}
 
-		if err := services.SendPushNotification([]string{pushToken.Token}, text); err != nil {
-			fmt.Printf("Failed to send push notification: %v\n", err)
+		var pushToken models.PushToken
+		if err := database.DB.Where("user_id = ?", story.UserID).First(&pushToken).Error; err == nil {
+			if err := services.SendPushNotification([]string{pushToken.Token}, text); err != nil {
+				fmt.Printf("Failed to send push notification: %v\n", err)
+			}
 		}
 	}
 

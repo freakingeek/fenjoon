@@ -26,7 +26,7 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://app.fnjo.ir", "https://fenjoon.vercel.app", "http://localhost:3000"},
+		AllowOrigins:     []string{"https://app.fnjo.ir", "https://app.stage.fnjo.ir", "https://fenjoon.vercel.app", "http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
