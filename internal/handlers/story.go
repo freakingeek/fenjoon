@@ -129,16 +129,15 @@ func GetAllStories(c *gin.Context) {
 }
 
 func GetStoryById(c *gin.Context) {
-	var story models.Story
-
 	userId, _ := auth.GetUserIdFromContext(c)
-
+	
 	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.StoryNotFound, Data: nil})
 		return
 	}
-
+	
+	var story models.Story
 	if err := database.DB.Preload("User").Where("id = ?", storyId).First(&story).Error; err != nil {
 		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
 		return
@@ -660,11 +659,7 @@ func GetAuthorOtherStories(c *gin.Context) {
 	}
 
 	var relatedStories []models.Story
-	query := database.DB.Where("user_id = ? AND id != ?", story.UserID, story.ID)
-	
-	if userId != story.UserID {
-		query = query.Where("is_private = ?", false)
-	}
+	query := database.DB.Where("user_id = ? AND id != ? AND is_private = ?", story.UserID, story.ID, false)
 	
 	if err := query.Preload("User").Order("id DESC").Limit(5).Find(&relatedStories).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
