@@ -95,6 +95,136 @@ func UpdateCurrentUser(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.UserEdited, Data: user})
 }
 
+func GetCurrentUserStories(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		return
+	}
+
+	var user models.User
+	if err := database.DB.First(&user, userId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.UserNotFound, Data: nil})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+
+	if limit < 1 || limit > 50 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
+	query := database.DB.Model(&models.Story{}).Where("user_id = ?", userId)
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	var stories []models.Story
+	if err := query.Preload("User").Order("id DESC").Limit(limit).Offset(offset).Find(&stories).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	for i := range stories {
+		var likesCount int64
+		if err := database.DB.Model(&models.Like{}).Where("story_id = ?", stories[i].ID).Count(&likesCount).Error; err != nil {
+			c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+			return
+		}
+
+		var commentsCount int64
+		if err := database.DB.Model(&models.Comment{}).Where("story_id = ?", stories[i].ID).Count(&commentsCount).Error; err != nil {
+			c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
+			return
+		}
+
+		var isLikedByUser bool
+		if err := database.DB.Model(&models.Like{}).
+			Where("story_id = ? AND user_id = ?", stories[i].ID, userId).
+			Select("COUNT(*) > 0").
+			Find(&isLikedByUser).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+			return
+		}
+
+		stories[i].LikesCount = uint(likesCount)
+		stories[i].CommentsCount = uint(commentsCount)
+		stories[i].IsLikedByUser = isLikedByUser
+		stories[i].IsEditableByUser = userId == stories[i].UserID
+		stories[i].IsDeletableByUser = userId == stories[i].UserID
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{
+		Status:  http.StatusOK,
+		Message: messages.GeneralSuccess,
+		Data: map[string]any{
+			"stories": stories,
+			"pagination": map[string]any{
+				"total": total,
+				"page":  page,
+				"limit": limit,
+				"pages": int((total + int64(limit) - 1) / int64(limit)), // Calculate total pages
+			},
+		},
+	})
+}
+
+func GetUserPrivateStoriesCount(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		return
+	}
+
+	targetUserId := userId
+	if userIdParam := c.Param("id"); userIdParam != "" {
+		parsedId, err := strconv.ParseUint(userIdParam, 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.UserNotFound, Data: nil})
+			return
+		}
+
+		targetUserId = uint(parsedId)
+	}
+
+	if targetUserId != userId {
+		c.JSON(http.StatusForbidden, responses.ApiResponse{Status: http.StatusForbidden, Message: messages.GeneralAccessDenied, Data: nil})
+		return
+	}
+
+	var privateStoriesCount int64
+	if err := database.DB.Model(&models.Story{}).Where("user_id = ? AND is_private = ?", userId, true).Count(&privateStoriesCount).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	var user models.User
+	if err := database.DB.Where("id = ?", userId).First(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	maxPrivateStories := 3
+	if user.IsPremium {
+		maxPrivateStories = -1 // -1 means unlimited
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: map[string]any{
+		"count": privateStoriesCount,
+		"max":   maxPrivateStories,
+	}})
+}
+
 func GetUserById(c *gin.Context) {
 	userId, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -121,7 +251,7 @@ func GetUserById(c *gin.Context) {
 	})
 }
 
-func GetUserStories(c *gin.Context) {
+func GetUserPublicStories(c *gin.Context) {
 	userId, _ := auth.GetUserIdFromContext(c)
 
 	targetUserId, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -149,11 +279,7 @@ func GetUserStories(c *gin.Context) {
 
 	offset := (page - 1) * limit
 
-	query := database.DB.Model(&models.Story{}).Where("user_id = ?", targetUserId)
-
-	if uint(targetUserId) != userId {
-		query = query.Where("is_private = ?", false)
-	}
+	query := database.DB.Model(&models.Story{}).Where("user_id = ? AND is_private = ?", targetUserId, false)
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -312,50 +438,4 @@ func GetUserComments(c *gin.Context) {
 			},
 		},
 	})
-}
-
-func GetUserPrivateStoriesCount(c *gin.Context) {
-	userId, err := auth.GetUserIdFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
-		return
-	}
-
-	targetUserId := userId
-	if userIdParam := c.Param("id"); userIdParam != "" {
-		parsedId, err := strconv.ParseUint(userIdParam, 10, 32)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.UserNotFound, Data: nil})
-			return
-		}
-
-		targetUserId = uint(parsedId)
-	}
-
-	if targetUserId != userId {
-		c.JSON(http.StatusForbidden, responses.ApiResponse{Status: http.StatusForbidden, Message: messages.GeneralAccessDenied, Data: nil})
-		return
-	}
-
-	var privateStoriesCount int64
-	if err := database.DB.Model(&models.Story{}).Where("user_id = ? AND is_private = ?", userId, true).Count(&privateStoriesCount).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
-		return
-	}
-
-	var user models.User
-	if err := database.DB.Where("id = ?", userId).First(&user).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
-		return
-	}
-
-	maxPrivateStories := 3
-	if user.IsPremium {
-		maxPrivateStories = -1 // -1 means unlimited
-	}
-
-	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: map[string]any{
-		"count": privateStoriesCount,
-		"max":   maxPrivateStories,
-	}})
 }
