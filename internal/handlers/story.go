@@ -111,6 +111,7 @@ func GetAllStories(c *gin.Context) {
 		stories[i].IsLikedByUser = isLikedByUser
 		stories[i].IsEditableByUser = userId == stories[i].UserID
 		stories[i].IsDeletableByUser = userId == stories[i].UserID
+		stories[i].IsPrivatableByUser = userId == stories[i].UserID
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{
@@ -130,13 +131,13 @@ func GetAllStories(c *gin.Context) {
 
 func GetStoryById(c *gin.Context) {
 	userId, _ := auth.GetUserIdFromContext(c)
-	
+
 	storyId, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.StoryNotFound, Data: nil})
 		return
 	}
-	
+
 	var story models.Story
 	if err := database.DB.Preload("User").Where("id = ?", storyId).First(&story).Error; err != nil {
 		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.StoryNotFound, Data: nil})
@@ -181,6 +182,7 @@ func GetStoryById(c *gin.Context) {
 	story.IsLikedByUser = isLikedByUser
 	story.IsEditableByUser = userId == story.UserID
 	story.IsDeletableByUser = userId == story.UserID
+	story.IsPrivatableByUser = userId == story.UserID
 
 	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: story})
 }
@@ -660,7 +662,7 @@ func GetAuthorOtherStories(c *gin.Context) {
 
 	var relatedStories []models.Story
 	query := database.DB.Where("user_id = ? AND id != ? AND is_private = ?", story.UserID, story.ID, false)
-	
+
 	if err := query.Preload("User").Order("id DESC").Limit(5).Find(&relatedStories).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
