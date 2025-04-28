@@ -37,12 +37,15 @@ func GetCurrentUser(c *gin.Context) {
 		Status:  http.StatusOK,
 		Message: messages.GeneralSuccess,
 		Data: map[string]any{
-			"id":        user.ID,
-			"firstName": user.FirstName,
-			"lastName":  user.LastName,
-			"nickname":  user.Nickname,
-			"phone":     user.Phone,
-			"bio":       user.Bio,
+			"id":         user.ID,
+			"firstName":  user.FirstName,
+			"lastName":   user.LastName,
+			"nickname":   user.Nickname,
+			"phone":      user.Phone,
+			"isBot":      user.IsBot,
+			"isVerified": user.IsVerified,
+			"isPremium":  user.IsPremium,
+			"bio":        user.Bio,
 		},
 	})
 }
@@ -162,6 +165,7 @@ func GetCurrentUserStories(c *gin.Context) {
 		stories[i].IsLikedByUser = isLikedByUser
 		stories[i].IsEditableByUser = userId == stories[i].UserID
 		stories[i].IsDeletableByUser = userId == stories[i].UserID
+		stories[i].IsPrivatableByUser = userId == stories[i].UserID
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{
@@ -320,6 +324,7 @@ func GetUserPublicStories(c *gin.Context) {
 		stories[i].IsLikedByUser = isLikedByUser
 		stories[i].IsEditableByUser = userId == stories[i].UserID
 		stories[i].IsDeletableByUser = userId == stories[i].UserID
+		stories[i].IsPrivatableByUser = userId == stories[i].UserID
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{
