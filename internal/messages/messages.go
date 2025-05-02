@@ -35,9 +35,11 @@ const (
 	CommentDeleted      = "نقد با موفقیت حذف شد"
 	CommentCharLimit    = "نقد باید حداقل ۵ و حداکثر ۲۵۰ حرف باشد"
 
-	UserNotFound      = "کاربری با این شناسه یافت نشد"
-	UserEdited        = "اطلاعات شما با موفقیت ویرایش شد"
-	UserForbiddenName = "لطفا فقط از کلمات فارسی استفاده کنید"
+	UserNotFound        = "کاربری با این شناسه یافت نشد"
+	UserEdited          = "اطلاعات شما با موفقیت ویرایش شد"
+	UserForbiddenName   = "لطفا فقط از کلمات فارسی استفاده کنید"
+	UserAlreadyFollowed = "این کاربر را قبلا دنبال کرده‌اید"
+	UserFollowSelf      = "نمی‌تونید خودتون رو دنبال کنید!"
 
 	ReportNotFound = "گزارشی یافت نشد"
 )

@@ -15,5 +15,10 @@ func UserRoutes(r *gin.RouterGroup) {
 
 	v1.GET(":id", handlers.GetUserById)
 	v1.GET(":id/stories", handlers.GetUserPublicStories) // Public Stories
-	v1.GET(":id/comments", handlers.GetUserComments) // Public Comments
+	v1.GET(":id/comments", handlers.GetUserComments)     // Public Comments
+
+	v1.POST(":id/follow", handlers.FollowUser)
+	v1.DELETE(":id/unfollow", handlers.UnfollowUser)
+	v1.GET(":id/followers", handlers.GetUserFollowers)
+	v1.GET(":id/followings", handlers.GetUserFollowings)
 }

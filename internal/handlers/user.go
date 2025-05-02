@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -11,6 +12,8 @@ import (
 	"github.com/freakingeek/fenjoon/internal/messages"
 	"github.com/freakingeek/fenjoon/internal/models"
 	"github.com/freakingeek/fenjoon/internal/responses"
+	"github.com/freakingeek/fenjoon/internal/services"
+	"github.com/freakingeek/fenjoon/internal/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -230,27 +233,66 @@ func GetUserPrivateStoriesCount(c *gin.Context) {
 }
 
 func GetUserById(c *gin.Context) {
-	userId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	userId, _ := auth.GetUserIdFromContext(c)
+
+	targetUserIdUint64, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.GeneralBadRequest, Data: nil})
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{
+			Status:  http.StatusBadRequest,
+			Message: messages.GeneralBadRequest,
+			Data:    nil,
+		})
+		return
+	}
+	targetUserId := uint(targetUserIdUint64)
+
+	var user models.User
+	if err := database.DB.First(&user, targetUserId).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.UserNotFound, Data: nil})
 		return
 	}
 
-	var user models.User
-	if err := database.DB.Where("id = ?", userId).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.UserNotFound, Data: nil})
+	var followersCount int64
+	if err := database.DB.Model(&models.Follow{}).
+		Where("following_id = ?", targetUserId).
+		Where("deleted_at IS NULL").
+		Count(&followersCount).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
 		return
+	}
+
+	var followingsCount int64
+	if err := database.DB.Model(&models.Follow{}).
+		Where("follower_id = ?", targetUserId).
+		Where("deleted_at IS NULL").
+		Count(&followingsCount).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	isFollowedByUser := false
+	if userId != 0 {
+		var count int64
+		if err := database.DB.Model(&models.Follow{}).
+			Where("follower_id = ? AND following_id = ?", userId, targetUserId).
+			Where("deleted_at IS NULL").
+			Count(&count).Error; err == nil && count > 0 {
+			isFollowedByUser = true
+		}
 	}
 
 	c.JSON(http.StatusOK, responses.ApiResponse{
 		Status:  http.StatusOK,
 		Message: messages.GeneralSuccess,
 		Data: map[string]any{
-			"id":        user.ID,
-			"firstName": user.FirstName,
-			"lastName":  user.LastName,
-			"nickname":  user.Nickname,
-			"bio":       user.Bio,
+			"id":               user.ID,
+			"firstName":        user.FirstName,
+			"lastName":         user.LastName,
+			"nickname":         user.Nickname,
+			"bio":              user.Bio,
+			"followersCount":   followersCount,
+			"followingsCount":  followingsCount,
+			"isFollowedByUser": isFollowedByUser,
 		},
 	})
 }
@@ -440,6 +482,214 @@ func GetUserComments(c *gin.Context) {
 				"page":  page,
 				"limit": limit,
 				"pages": int((total + int64(limit) - 1) / int64(limit)), // Calculate total pages
+			},
+		},
+	})
+}
+
+func FollowUser(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		return
+	}
+
+	followingUserId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.GeneralBadRequest, Data: nil})
+		return
+	}
+
+	if userId == uint(followingUserId) {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.UserFollowSelf, Data: nil})
+		return
+	}
+
+	var existingFollow models.Follow
+	if err := database.DB.Where("follower_id = ? AND following_id = ?", userId, followingUserId).First(&existingFollow).Error; err == nil {
+		c.JSON(http.StatusConflict, responses.ApiResponse{Status: http.StatusConflict, Message: messages.UserAlreadyFollowed, Data: nil})
+		return
+	}
+
+	follow := models.Follow{FollowerID: uint(userId), FollowingID: uint(followingUserId)}
+	if err := database.DB.Create(&follow).First(&follow, follow.ID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	var user models.User
+	if err := database.DB.First(&user, userId).Error; err == nil {
+		text := fmt.Sprintf("%s از حالا دنبالت میکنه!", utils.GetUserDisplayName(user))
+
+		notification := models.Notification{UserID: uint(followingUserId), Title: "دنبال کننده جدید داری!", Message: text, Url: fmt.Sprintf("/author/%d", userId)}
+		if err := services.SendInAppNotification(notification); err != nil {
+			fmt.Printf("Failed to send in-app notification: %v\n", err)
+		}
+
+		var pushToken models.PushToken
+		if err := database.DB.Where("user_id = ?", followingUserId).First(&pushToken).Error; err == nil {
+			if err := services.SendPushNotification([]string{pushToken.Token}, text); err != nil {
+				fmt.Printf("Failed to send push notification: %v\n", err)
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: true})
+}
+
+func UnfollowUser(c *gin.Context) {
+	userId, err := auth.GetUserIdFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ApiResponse{Status: http.StatusUnauthorized, Message: messages.GeneralUnauthorized, Data: nil})
+		return
+	}
+
+	followingUserId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.UserNotFound, Data: nil})
+		return
+	}
+
+	var follow models.Follow
+	if err := database.DB.Where("follower_id = ? AND following_id = ?", userId, followingUserId).First(&follow).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.GeneralNotFound, Data: nil})
+		return
+	}
+
+	if err := database.DB.Delete(&follow).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{Status: http.StatusOK, Message: messages.GeneralSuccess, Data: true})
+}
+
+func GetUserFollowers(c *gin.Context) {
+	userId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.GeneralBadRequest, Data: nil})
+		return
+	}
+
+	var user models.User
+	if err := database.DB.Where("id = ?", userId).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.UserNotFound, Data: nil})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+
+	if limit < 1 || limit > 50 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
+	var total int64
+	if err := database.DB.
+		Model(&models.Follow{}).
+		Where("following_id = ?", userId).
+		Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	var followers []models.User
+	if err := database.DB.
+		Table("users").
+		Select("users.*").
+		Joins("JOIN follows ON follows.follower_id = users.id").
+		Where("follows.following_id = ?", userId).
+		Where("follows.deleted_at IS NULL").
+		Order("follows.created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&followers).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{
+		Status:  http.StatusOK,
+		Message: messages.GeneralSuccess,
+		Data: map[string]any{
+			"followers": followers,
+			"pagination": map[string]any{
+				"total": total,
+				"page":  page,
+				"limit": limit,
+				"pages": int((total + int64(limit) - 1) / int64(limit)),
+			},
+		},
+	})
+}
+
+func GetUserFollowings(c *gin.Context) {
+	userId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ApiResponse{Status: http.StatusBadRequest, Message: messages.GeneralBadRequest, Data: nil})
+		return
+	}
+
+	var user models.User
+	if err := database.DB.Where("id = ?", userId).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, responses.ApiResponse{Status: http.StatusNotFound, Message: messages.UserNotFound, Data: nil})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+
+	if limit < 1 || limit > 50 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
+	var total int64
+	if err := database.DB.
+		Model(&models.Follow{}).
+		Where("follower_id = ?", userId).
+		Where("deleted_at IS NULL").
+		Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	var followings []models.User
+	if err := database.DB.
+		Table("users").
+		Select("users.*").
+		Joins("JOIN follows ON follows.following_id = users.id").
+		Where("follows.follower_id = ?", userId).
+		Where("follows.deleted_at IS NULL").
+		Order("follows.created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&followings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ApiResponse{Status: http.StatusInternalServerError, Message: messages.GeneralFailed, Data: nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.ApiResponse{
+		Status:  http.StatusOK,
+		Message: messages.GeneralSuccess,
+		Data: map[string]any{
+			"followings": followings,
+			"pagination": map[string]any{
+				"total": total,
+				"page":  page,
+				"limit": limit,
+				"pages": int((total + int64(limit) - 1) / int64(limit)),
 			},
 		},
 	})
