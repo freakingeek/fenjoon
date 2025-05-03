@@ -26,6 +26,9 @@ func StoryRoutes(r *gin.RouterGroup) {
 
 	v1.POST(":id/reports", handlers.ReportStory)
 
+	v1.POST(":id/bookmarks", handlers.BookmarkStory)
+	v1.DELETE(":id/bookmarks", handlers.UnBookmarkStory)
+
 	v1.GET(":id/related-by-author", handlers.GetAuthorOtherStories)
 
 	v1.PATCH(":id/visibility", handlers.ChangeStoryVisibility)
