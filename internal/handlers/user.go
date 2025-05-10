@@ -398,6 +398,7 @@ func GetUserById(c *gin.Context) {
 			"lastName":         user.LastName,
 			"nickname":         user.Nickname,
 			"bio":              user.Bio,
+			"isPremium":        user.IsPremium,
 			"followersCount":   followersCount,
 			"followingsCount":  followingsCount,
 			"isFollowedByUser": isFollowedByUser,
